@@ -3,49 +3,67 @@ import { CARD_INFO, type Card } from "../game";
 
 const HOLD_MS = 420;
 
+/** Shrinks `el`'s font in small steps until `overflows()` is false. */
+function shrinkToFit(el: HTMLElement, overflows: () => boolean) {
+  el.style.fontSize = "";
+  let size = parseFloat(getComputedStyle(el).fontSize);
+  for (let i = 0; i < 40 && overflows(); i++) {
+    size -= 0.25;
+    el.style.fontSize = `${size}px`;
+  }
+}
+
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+/** Width in px of the widest word in `el`'s text, in its current font. */
+function widestWord(el: HTMLElement): number {
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  if (!measureCtx) return 0;
+  const cs = getComputedStyle(el);
+  measureCtx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  return Math.max(0, ...(el.textContent ?? "").split(/\s+/).map((w) => measureCtx!.measureText(w).width));
+}
+
 /**
- * Shrinks a card title's font just enough that its longest word fits on one
- * line, so names like "Extinguisher" never break mid-word. Re-fits when the
- * card resizes (card-size setting) or the web font finishes loading.
+ * Keeps a card face's text inside the card:
+ * - the title shrinks just enough that its longest word fits on one line, so
+ *   names like "Extinguisher" never break mid-word;
+ * - the description then shrinks until it ends above the card's bottom edge.
+ * Re-fits when the card resizes (card-size setting) or the web font loads.
+ * Everything is measured in layout px (canvas text metrics, offsets), so the
+ * deal-in animation's rotate/scale transforms don't skew the result.
  */
-function useFitTitle(text: string) {
-  const ref = useRef<HTMLDivElement>(null);
+function useFitFace(title: string, sub: string) {
+  const titleRef = useRef<HTMLDivElement>(null);
+  const subRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const range = document.createRange();
-    // Widest line of text vs. the space inside the padding. Both come from
-    // getBoundingClientRect so sub-pixel widths and any CSS transform on the
-    // card (deal / select animations) cancel out.
-    const overflow = (pad: number) => {
-      range.selectNodeContents(el);
-      const box = el.getBoundingClientRect();
-      const scale = el.offsetWidth ? box.width / el.offsetWidth : 1;
-      return range.getBoundingClientRect().width - (box.width - pad * scale) + 0.5 * scale;
+    const t = titleRef.current;
+    const s = subRef.current;
+    const card = t?.parentElement;
+    if (!t || !s || !card) return;
+
+    const titleOverflows = () => {
+      const cs = getComputedStyle(t);
+      const inner = t.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      return widestWord(t) > inner - 1;
     };
+    // .sub's offsetParent is the (position: relative) card.
+    const subOverflows = () => s.offsetHeight > 0 && s.offsetTop + s.scrollHeight > card.clientHeight;
+
     const fit = () => {
-      el.style.fontSize = "";
-      const cs = getComputedStyle(el);
-      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-      if (overflow(pad) <= 0) return;
-      // Shrink in small steps until the longest word fits on its line.
-      let size = parseFloat(cs.fontSize);
-      for (let i = 0; i < 40 && overflow(pad) > 0; i++) {
-        size -= 0.25;
-        el.style.fontSize = `${size}px`;
-      }
+      shrinkToFit(t, titleOverflows);
+      shrinkToFit(s, subOverflows);
     };
     fit();
     let alive = true;
     document.fonts?.ready.then(() => alive && fit());
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fit) : null;
-    ro?.observe(el.parentElement ?? el);
+    ro?.observe(card);
     return () => {
       alive = false;
       ro?.disconnect();
     };
-  }, [text]);
-  return ref;
+  }, [title, sub]);
+  return { titleRef, subRef };
 }
 
 interface Props {
@@ -63,7 +81,7 @@ export function CardView({ card, small, selected, dealDelay, onClick, onHold }: 
   const info = CARD_INFO[card.kind];
   const timer = useRef<number | null>(null);
   const held = useRef(false);
-  const titleRef = useFitTitle(info.name);
+  const { titleRef, subRef } = useFitFace(info.name, info.short);
 
   const className = ["card", small && "small", selected && "selected", onClick && "selectable"].filter(Boolean).join(" ");
   const style = { "--hue": info.hue, "--deal-delay": dealDelay !== undefined ? `${dealDelay}ms` : undefined } as CSSProperties;
@@ -71,7 +89,7 @@ export function CardView({ card, small, selected, dealDelay, onClick, onHold }: 
     <>
       <div className="band">{info.emoji}</div>
       <div className="title" ref={titleRef}>{info.name}</div>
-      <div className="sub">{info.short}</div>
+      <div className="sub" ref={subRef}>{info.short}</div>
     </>
   );
   if (!onClick) {

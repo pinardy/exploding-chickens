@@ -49,7 +49,7 @@ export const CARD_INFO: Record<CardKind, CardInfo> = {
   careful: { name: "Careful Peck", emoji: "🔍", text: "End your turn by drawing the first card that isn't an Exploding Chicken. If they're all chickens, you simply skip.", short: "Draw the first safe card.", hue: "#2a9d8f" },
   fox: { name: "Fox in the Henhouse", emoji: "🦊", text: "Pick a player. All their Favor and plain chicken cards are destroyed.", short: "Destroy their steal cards.", hue: "#c2520f" },
   scramble: { name: "Coop Scramble", emoji: "🌪️", text: "Everyone's hands are pooled, shuffled and dealt back out. Card counts stay the same.", short: "Redeal everyone's hands.", hue: "#7a4fb5" },
-  hot: { name: "Hot Chicken", emoji: "🌶️", text: "Can't be played. If you draw an Exploding Chicken while holding this, the chicken is tossed to the next player, who must deal with it.", short: "Toss a drawn chicken onward.", hue: "#b5392c" },
+  hot: { name: "Hot Chicken", emoji: "🌶️", text: "Can't be played. If you draw an Exploding Chicken while holding this, the chicken is tossed to the next player, who must deal with it.", short: "Pass a drawn chicken on.", hue: "#b5392c" },
   hen: { name: "Hen", emoji: "🐔", text: PLAIN_TEXT, short: "Pair up to steal.", hue: "#8c6a4a" },
   rooster: { name: "Rooster", emoji: "🐓", text: PLAIN_TEXT, short: "Pair up to steal.", hue: "#8c6a4a" },
   chick: { name: "Chick", emoji: "🐥", text: PLAIN_TEXT, short: "Pair up to steal.", hue: "#8c6a4a" },
