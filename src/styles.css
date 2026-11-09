@@ -486,8 +486,10 @@ button.mute {
   font-weight: 600;
   font-size: 0.78rem;
   line-height: 1.1;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  /* Never split a word across lines; CardView shrinks the text to fit instead. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
 }
 .card .sub {
   padding: 3px 7px;
