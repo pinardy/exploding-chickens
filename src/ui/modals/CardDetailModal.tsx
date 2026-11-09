@@ -6,7 +6,7 @@ import { Modal } from "./Modal";
 export function CardDetailModal({ card, onClose }: { card: Card; onClose: () => void }) {
   const info = CARD_INFO[card.kind];
   return (
-    <Modal title={info.name}>
+    <Modal title={info.name} onClose={onClose}>
       <div className="row">
         <CardView card={card} />
       </div>

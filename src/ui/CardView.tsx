@@ -2,6 +2,10 @@ import { useLayoutEffect, useRef, type CSSProperties, type PointerEvent } from "
 import { CARD_INFO, type Card } from "../game";
 
 const HOLD_MS = 420;
+/** A drag further than this cancels tap-and-hold. */
+const MOVE_SLOP_PX = 10;
+/** An upward drag this long (and mostly vertical) counts as a swipe up. */
+const SWIPE_PX = 40;
 
 /** Shrinks `el`'s font in small steps until `overflows()` is false. */
 function shrinkToFit(el: HTMLElement, overflows: () => boolean) {
@@ -75,12 +79,16 @@ interface Props {
   onClick?: () => void;
   /** Tap-and-hold. When it fires, the following click is swallowed. */
   onHold?: () => void;
+  /** Flick the card upward. The following click is swallowed. */
+  onSwipeUp?: () => void;
 }
 
-export function CardView({ card, small, selected, dealDelay, onClick, onHold }: Props) {
+export function CardView({ card, small, selected, dealDelay, onClick, onHold, onSwipeUp }: Props) {
   const info = CARD_INFO[card.kind];
   const timer = useRef<number | null>(null);
+  /** Set when a hold or swipe has handled this press, so the click that follows does nothing. */
   const held = useRef(false);
+  const start = useRef<{ x: number; y: number } | null>(null);
   const { titleRef, subRef } = useFitFace(info.name, info.short);
 
   const className = ["card", small && "small", selected && "selected", onClick && "selectable"].filter(Boolean).join(" ");
@@ -100,17 +108,41 @@ export function CardView({ card, small, selected, dealDelay, onClick, onHold }: 
     );
   }
 
-  const startHold = (e: PointerEvent) => {
-    if (!onHold || e.button !== 0) return;
+  const cancelHold = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const down = (e: PointerEvent) => {
+    if (e.button !== 0) return;
     held.current = false;
+    start.current = { x: e.clientX, y: e.clientY };
+    // Keep getting this pointer's events even when the finger leaves the card mid-swipe.
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (!onHold) return;
     timer.current = window.setTimeout(() => {
       held.current = true;
       onHold();
     }, HOLD_MS);
   };
-  const cancelHold = () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = null;
+  const move = (e: PointerEvent) => {
+    const s0 = start.current;
+    if (s0 && Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > MOVE_SLOP_PX) cancelHold();
+  };
+  const up = (e: PointerEvent) => {
+    cancelHold();
+    const s0 = start.current;
+    start.current = null;
+    if (!s0 || !onSwipeUp || held.current) return;
+    const dx = e.clientX - s0.x;
+    const dy = e.clientY - s0.y;
+    if (dy < -SWIPE_PX && Math.abs(dx) < Math.abs(dy)) {
+      held.current = true;
+      onSwipeUp();
+    }
+  };
+  const cancel = () => {
+    cancelHold();
+    start.current = null;
   };
   const click = () => {
     if (held.current) {
@@ -126,10 +158,10 @@ export function CardView({ card, small, selected, dealDelay, onClick, onHold }: 
       className={className}
       style={style}
       onClick={click}
-      onPointerDown={startHold}
-      onPointerUp={cancelHold}
-      onPointerLeave={cancelHold}
-      onPointerCancel={cancelHold}
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={cancel}
       onContextMenu={(e) => e.preventDefault()}
       aria-pressed={!!selected}
     >

@@ -1,5 +1,8 @@
 import type { Player, Quip } from "../game";
 
+/** From this many opponents the seats shrink to one compact row so the hand stays on screen. */
+const COMPACT_FROM = 4;
+
 interface Props {
   players: Player[];
   currentId: number;
@@ -11,7 +14,7 @@ interface Props {
 /** The other players around the table, with card counts, a thinking wobble and speech bubbles. */
 export function Seats({ players, currentId, thinkingId, quip }: Props) {
   return (
-    <div className="opponents">
+    <div className={`opponents ${players.length >= COMPACT_FROM ? "compact" : ""}`}>
       {players.map((p) => (
         <div
           key={p.id}

@@ -256,10 +256,13 @@ button.mute {
   padding: 8px 10px 10px;
   max-width: 560px;
   margin: 0 auto;
+  /* Last resort on very short screens: scroll rather than push the hand off-screen. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
@@ -391,40 +394,85 @@ button.mute {
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.18);
   color: var(--cream);
   font-size: 0.85rem;
+  padding: 0;
+}
+.pile.discard:disabled {
+  opacity: 1;
+}
+.pile.discard:active {
+  transform: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
 .pile.discard .card {
   transform: rotate(-4deg);
 }
 .danger {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.badge {
   font-size: 0.8rem;
-  text-align: center;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
   color: var(--cream);
-  opacity: 0.85;
-  margin-top: 4px;
+  white-space: nowrap;
+}
+.badge.bad {
+  background: rgba(181, 57, 44, 0.55);
 }
 
 .log {
+  position: relative;
   background: rgba(0, 0, 0, 0.22);
+  color: var(--cream);
+  box-shadow: none;
   border-radius: var(--radius);
-  padding: 8px 12px;
+  padding: 8px 30px 8px 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: left;
   font-size: 0.86rem;
   line-height: 1.35;
-  min-height: 3.9em;
+  min-height: 2.6em;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   overflow: hidden;
 }
-.log div {
+.log:active {
+  transform: none;
+  box-shadow: none;
+  background: rgba(0, 0, 0, 0.3);
+}
+/* "there's more" chevron */
+.log::after {
+  content: "›";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  translate: 0 -50%;
+  font-size: 1.4rem;
+  opacity: 0.5;
+}
+.log span {
+  display: block;
   opacity: 0.55;
 }
-.log div:last-child {
+.log span:last-child {
   opacity: 1;
 }
-.log .bad {
+.log .bad,
+.history .bad {
   color: #ffb3a7;
 }
-.log .good {
+.log .good,
+.history .good {
   color: #b6f0d3;
 }
 
@@ -493,7 +541,7 @@ button.mute {
 }
 .card .sub {
   padding: 3px 7px;
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   line-height: 1.2;
   color: var(--ink-soft);
 }
@@ -551,6 +599,9 @@ button.mute {
   border-radius: 18px;
   padding: 18px 16px;
   width: min(100%, 460px);
+  max-height: calc(100dvh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: var(--shadow);
   animation: rise 0.18s ease-out;
 }
@@ -766,7 +817,7 @@ button.mute {
   font-size: calc(0.78rem * var(--card-scale));
 }
 .hand .card .sub {
-  font-size: calc(0.66rem * var(--card-scale));
+  font-size: calc(0.7rem * var(--card-scale));
 }
 .card {
   -webkit-touch-callout: none;
@@ -792,16 +843,28 @@ button.mute {
 
 /* ---------- start screen extras ---------- */
 button.gear {
-  background: rgba(0, 0, 0, 0.25);
+  /* 44px touch target; the visible chip is the 32px circle in the middle. */
+  width: 44px;
+  height: 44px;
+  margin: -8px -6px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.25) 15.5px, transparent 16.5px);
   box-shadow: none;
-  padding: 4px 8px;
-  font-size: 1rem;
+  font-size: 1.05rem;
   line-height: 1;
+  flex: none;
+}
+button.gear:active {
+  box-shadow: none;
 }
 .start button.gear {
   position: absolute;
-  top: calc(12px + env(safe-area-inset-top, 0px));
-  right: 12px;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  right: 6px;
+  margin: 0;
 }
 .levels {
   display: grid;
@@ -864,6 +927,13 @@ button.gear {
 .start .deal {
   font-size: 1.05rem;
   padding: 0.8em 1.6em;
+  /* Always reachable: rides the bottom of the screen until you scroll down to it. */
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  box-shadow:
+    0 3px 0 var(--straw-deep),
+    0 8px 22px rgba(0, 0, 0, 0.45);
 }
 
 /* ---------- settings modal ---------- */
@@ -1225,13 +1295,186 @@ button.gear {
   opacity: 0.85;
   font-size: 0.82rem;
 }
-.danger .direction {
-  margin-left: 6px;
-  font-size: 1rem;
-}
-.opponents {
-  flex-wrap: wrap;
-}
+
+
+
+/* ======================================================================
+   Phone layout
+   ====================================================================== */
+
+/* ---------- opponents: one row, compact at big tables ---------- */
 .opponents .seat {
-  min-width: 96px;
+  min-width: 0;
+}
+.seat .name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opponents.compact {
+  gap: 6px;
+}
+.opponents.compact .seat {
+  padding: 6px 3px;
+}
+.opponents.compact .seat .face {
+  font-size: 1.35rem;
+}
+.opponents.compact .seat .name {
+  font-size: 0.74rem;
+}
+.opponents.compact .seat .count {
+  font-size: 0.7rem;
+}
+.opponents.compact .seat .fan {
+  display: none;
+}
+
+/* ---------- short screens (iPhone SE and friends) ---------- */
+@media (max-height: 640px) {
+  .game {
+    gap: 6px;
+  }
+  .opponents .seat {
+    padding: 5px 4px;
+  }
+  .opponents .seat .face {
+    font-size: 1.3rem;
+  }
+  .opponents .seat .fan {
+    display: none;
+  }
+  .pile {
+    width: 76px;
+    height: 106px;
+  }
+  .pile.draw .big {
+    font-size: 1.6rem;
+  }
+  .danger {
+    margin-top: 6px;
+  }
+}
+
+/* ---------- hand: fan when it doesn't fit ---------- */
+.hand .card {
+  /* vertical drags are swipes (to play); horizontal ones scroll the hand */
+  touch-action: pan-x;
+}
+.hand.fanned .card + .card {
+  margin-left: calc(-1 * var(--overlap));
+}
+.hand.fanned .card {
+  box-shadow:
+    -3px 0 6px rgba(0, 0, 0, 0.18),
+    var(--shadow);
+}
+/* Only each card's left edge shows, so pull the emoji over there. */
+.hand.fanned .card .band {
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+.hand .card.selected {
+  z-index: 1;
+}
+
+/* ---------- what the selected card does ---------- */
+.selinfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-weight: 400;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  letter-spacing: 0;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--cream);
+  box-shadow: none;
+}
+.selinfo:active {
+  transform: none;
+  box-shadow: none;
+}
+.selinfo .text {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.selinfo b {
+  color: var(--straw);
+  font-weight: 600;
+}
+.selinfo.err .text {
+  color: #ffb3a7;
+}
+.selinfo .more {
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
+/* ---------- confirm-draw ---------- */
+.pile.draw.armed {
+  outline: 3px solid var(--straw);
+  outline-offset: 3px;
+}
+.actions button.armed {
+  background: var(--straw);
+  box-shadow: 0 3px 0 var(--straw-deep);
+}
+
+/* ---------- history sheets ---------- */
+.history {
+  max-height: 55dvh;
+  overflow-y: auto;
+  margin: 4px -4px 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--table-deep);
+  color: var(--cream);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.history > div + div {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 3px;
+  margin-top: 3px;
+}
+.modal .row.pile-cards {
+  justify-content: flex-start;
+  max-height: 55dvh;
+  overflow-y: auto;
+}
+
+/* ---------- resume banner (start screen) ---------- */
+.resume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 380px);
+  padding: 10px 10px 10px 14px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 2px var(--straw);
+  text-align: left;
+}
+.resume > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.resume small {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.resume button.ghost {
+  padding: 0.7em 0.4em;
+  font-size: 0.85rem;
 }

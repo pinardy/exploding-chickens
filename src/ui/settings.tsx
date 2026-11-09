@@ -7,9 +7,11 @@ export interface Settings {
   reducedMotion: boolean;
   leftHanded: boolean;
   haptics: boolean;
+  /** Draw takes two taps, so a stray tap can't end your turn. */
+  confirmDraw: boolean;
 }
 
-const DEFAULTS: Settings = { cardSize: "medium", reducedMotion: false, leftHanded: false, haptics: true };
+const DEFAULTS: Settings = { cardSize: "medium", reducedMotion: false, leftHanded: false, haptics: true, confirmDraw: false };
 const KEY = "ec-settings";
 
 function load(): Settings {

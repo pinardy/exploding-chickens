@@ -3,6 +3,7 @@ import { AVATARS, BASE_EXTRAS, CARD_INFO, DECK_RECIPE, EXPANSION_RECIPE, HAND_LI
 import { play, unlockAudio } from "../sounds";
 import { Logo } from "./Logo";
 import { SettingsModal } from "./modals/SettingsModal";
+import type { SavedGame } from "./savedGame";
 import { loadStats } from "./stats";
 
 const COUNTS: Record<Mode, number[]> = {
@@ -19,7 +20,15 @@ const EXPANSION_KINDS = Object.keys(EXPANSION_RECIPE) as CardKind[];
 
 const defaultSeats = (): Seat[] => Array.from({ length: MAX_PLAYERS }, (_, i) => ({ name: "", avatar: AVATARS[i] }));
 
-export function Start({ onStart }: { onStart: (setup: GameSetup) => void }) {
+interface Props {
+  /** A game left unfinished on this device, if any. */
+  saved: SavedGame | null;
+  onStart: (setup: GameSetup) => void;
+  onResume: () => void;
+  onDiscardSaved: () => void;
+}
+
+export function Start({ saved, onStart, onResume, onDiscardSaved }: Props) {
   const [mode, setMode] = useState<Mode>("solo");
   const [bots, setBots] = useState(2);
   const [people, setPeople] = useState(2);
@@ -67,6 +76,27 @@ export function Start({ onStart }: { onStart: (setup: GameSetup) => void }) {
         <p className="tally">
           {stats.games} game{stats.games === 1 ? "" : "s"} played on this phone. {stats.explosions} chicken{stats.explosions === 1 ? "" : "s"} exploded.
         </p>
+      )}
+
+      {saved && (
+        <div className="resume">
+          <div>
+            <b>Game in progress</b>
+            <small>{describeSaved(saved)}</small>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              unlockAudio();
+              onResume();
+            }}
+          >
+            Resume
+          </button>
+          <button type="button" className="ghost" onClick={onDiscardSaved} aria-label="Discard the saved game">
+            Discard
+          </button>
+        </div>
       )}
 
       <div className="modes" role="group" aria-label="Game mode">
@@ -150,7 +180,8 @@ export function Start({ onStart }: { onStart: (setup: GameSetup) => void }) {
           <li>Skip, Reverse and Double Peck end your turn without drawing. Double Peck makes the next player take two turns, and it stacks.</li>
           <li>Two matching plain chickens steal a random card. Favor makes someone hand you a card of their choice.</li>
           <li>No Way cancels an opponent’s action card. You get a few seconds to use it.</li>
-          <li>Tap a card to select it; press and hold to read what it does.</li>
+          <li>Tap a card to select it; press and hold to read what it does. Double-tap or swipe a card up to play it straight away.</li>
+          <li>Tap the log to see everything that’s happened, and the discard pile to see what’s been played.</li>
           <li>In pass &amp; play, hand the phone over when the screen asks. Only the person holding it sees their cards.</li>
           <li>Last player standing wins.</li>
         </ul>
@@ -189,4 +220,10 @@ export function Start({ onStart }: { onStart: (setup: GameSetup) => void }) {
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
+}
+
+function describeSaved({ state }: SavedGame): string {
+  const alive = state.players.filter((p) => p.alive).length;
+  const who = state.mode === "solo" ? `vs ${state.players.length - 1} bot${state.players.length === 2 ? "" : "s"}` : `${state.players.length} players`;
+  return `${state.mode === "solo" ? "Solo" : "Pass & play"} ${who} · ${alive} still in · ${state.deck.length} cards left`;
 }
