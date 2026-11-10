@@ -19,12 +19,12 @@ export function actionLabel(a: PendingAction): string {
 export const narrate = {
   intro(s: GameState) {
     const n = s.players.length;
-    log(s, `${n} players, ${n - 1} exploding chickens in the pile. ${who(s, s.players[0], "go", "goes")} first.`);
+    log(s, `${n} players, ${plural(n - 1, "exploding chicken")} in the pile. ${who(s, s.players[0], "go", "goes")} first.`);
   },
 
   turnStart(s: GameState, p: Player) {
     const base = isYou(s, p) ? "Your turn" : `${p.name}'s turn`;
-    log(s, s.turnsLeft > 1 ? `${base} — ${s.turnsLeft} turns to take.` : `${base}.`);
+    log(s, s.turnsLeft > 1 ? `${base} — ${s.turnsLeft} turns to take.` : `${base}.`, "turn");
   },
 
   turnsLeft(s: GameState, p: Player) {

@@ -41,6 +41,7 @@ function advanceTurn(s: GameState) {
   s.turnsLeft = s.pendingAttack > 0 ? s.pendingAttack : 1;
   s.pendingAttack = 0;
   s.phase = { type: "turn" };
+  s.turnsTaken = { ...s.turnsTaken, [next.id]: (s.turnsTaken?.[next.id] ?? 0) + 1 };
   narrate.turnStart(s, next);
 }
 
@@ -121,6 +122,7 @@ function faceChicken(s: GameState, p: Player, card: Card, tossed = false) {
   s.discard.push(card, ...p.hand);
   p.hand = [];
   p.alive = false;
+  s.outOrder = [...(s.outOrder ?? []), p.id];
   setEvent(s, "explode", p.id);
   cue(s, "boom");
   narrate.exploded(s, p);
@@ -218,6 +220,7 @@ export function playCards(state: GameState, playerId: number, cardIds: number[],
   const p = currentPlayer(s);
   const cards = takeFromHand(p, cardIds);
   s.discard.push(...cards);
+  s.lastPlay = { id: s.nextId++, actorId: p.id, cardIds: cardIds.slice(), targetId };
   cue(s, kind === "pair" ? "cluck" : "pop");
 
   const action: PendingAction = { actorId: p.id, kind, cards, targetId };
@@ -242,6 +245,7 @@ export function sayNoWay(state: GameState, playerId: number): GameState {
   const card = hasCard(h, "noway");
   if (!card) return s;
   s.discard.push(...takeFromHand(h, [card.id]));
+  s.lastPlay = { id: s.nextId++, actorId: h.id, cardIds: [card.id] };
   cue(s, "buzz");
   narrate.noWay(s, h, playerById(s, s.phase.action.actorId));
   s.phase = { type: "turn" };
@@ -351,10 +355,10 @@ function resolveAction(s: GameState, a: PendingAction) {
     case "peek": {
       const top = s.deck.slice(0, 3);
       cue(s, "peek");
+      s.botKnowledge[p.id] = top.map((c) => c.kind);
       if (p.isHuman) {
         s.phase = { type: "peek", cards: top };
       } else {
-        s.botKnowledge[p.id] = top.map((c) => c.kind);
         narrate.botPeeked(s, p, top[0]?.kind === "chicken");
       }
       return;

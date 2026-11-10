@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { isMuted, setMuted, unlockAudio } from "../../sounds";
+import { COACH_DONE, resetCoach, useCoachStep } from "../coach";
 import { useSettings, type CardSize } from "../settings";
 import { Modal } from "./Modal";
 
@@ -30,6 +31,7 @@ interface GameActions {
 export function SettingsModal({ onClose, game }: { onClose: () => void; game?: GameActions }) {
   const [settings, update] = useSettings();
   const [confirming, setConfirming] = useState<"new" | "quit" | null>(null);
+  const coach = useCoachStep();
 
   if (game && confirming) {
     const quitting = confirming === "quit";
@@ -65,6 +67,15 @@ export function SettingsModal({ onClose, game }: { onClose: () => void; game?: G
       <Toggle label="Reduce motion" hint="No card animations or shaking" on={settings.reducedMotion} onChange={(v) => update({ reducedMotion: v })} />
       <Toggle label="Left-handed layout" hint="Draw pile and buttons on the left" on={settings.leftHanded} onChange={(v) => update({ leftHanded: v })} />
       <Toggle label="Confirm draws" hint="Tap Draw twice, so a stray tap can’t end your turn" on={settings.confirmDraw} onChange={(v) => update({ confirmDraw: v })} />
+      <div className="setting">
+        <span>
+          First-game tips
+          <small>{coach < COACH_DONE ? "Showing on your turns" : "Hints on your first turns"}</small>
+        </span>
+        <button type="button" className="secondary small" disabled={coach === 0} onClick={resetCoach}>
+          {coach === 0 ? "On" : "Show again"}
+        </button>
+      </div>
       <div className="buttons">
         {game && (
           <>

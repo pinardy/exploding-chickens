@@ -1478,3 +1478,458 @@ button.gear:active {
   padding: 0.7em 0.4em;
   font-size: 0.85rem;
 }
+
+/* ======================================================================
+   Turn signal, coach tips, spectating, pile memory, game-over summary
+   ====================================================================== */
+
+/* ---------- log: whose-turn lines are dividers, not sentences ---------- */
+.log span.turn,
+.history .turn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--straw);
+  opacity: 0.7;
+}
+.log span.turn::before,
+.log span.turn::after,
+.history .turn::before,
+.history .turn::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.35;
+}
+.history > div.turn {
+  border-top: 0;
+  margin-top: 8px;
+}
+
+/* ---------- your turn ---------- */
+.turn-toast {
+  position: fixed;
+  left: 50%;
+  top: 38%;
+  translate: -50% -50%;
+  z-index: 15;
+  pointer-events: none;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--straw);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 1.15rem;
+  box-shadow: var(--shadow);
+  animation: toast 1.3s ease both;
+}
+@keyframes toast {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  15%,
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+.handwrap {
+  border-radius: 16px;
+  transition: box-shadow 0.3s;
+}
+.handwrap.active {
+  box-shadow: 0 0 0 2px rgba(240, 194, 79, 0.55), 0 0 24px rgba(240, 194, 79, 0.18);
+}
+
+/* ---------- someone was targeted ---------- */
+.seat .ping {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: ping 1.1s ease-out both;
+}
+@keyframes ping {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 120, 100, 0.9);
+    background: rgba(255, 120, 100, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(255, 120, 100, 0);
+    background: rgba(255, 120, 100, 0);
+  }
+}
+
+/* ---------- played cards fly in from whoever played them ---------- */
+.land.from-player {
+  animation: land-from 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes land-from {
+  from {
+    transform: translate(var(--from-x, 0), var(--from-y, 0)) rotate(-20deg) scale(0.55);
+    opacity: 0.6;
+  }
+  to {
+    transform: rotate(-4deg);
+  }
+}
+
+/* ---------- what you know about the pile ---------- */
+/* A column beside the draw pile, top card first, so it costs no height. */
+.known {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-right: -6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.known-label {
+  opacity: 0.8;
+}
+.known-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 0.95rem;
+  box-shadow: 0 2px 0 var(--cream-deep);
+}
+.known-card.bad {
+  background: #ffd6cf;
+  box-shadow: 0 0 0 2px var(--barn);
+}
+
+/* ---------- first-game tips ---------- */
+.coach {
+  align-self: end;
+  background: var(--cream);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  position: relative;
+  animation: rise 0.25s ease-out;
+}
+/* points down at the hand */
+.coach::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-left: -8px;
+  border: 8px solid transparent;
+  border-top-color: var(--cream);
+}
+.coach p {
+  margin: 4px 0 6px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.coach-icon {
+  font-size: 1.1rem;
+}
+.coach-step {
+  display: flex;
+  gap: 4px;
+}
+.coach-step i {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--cream-deep);
+}
+.coach-step i.on {
+  background: var(--straw-deep);
+}
+.coach-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.coach-buttons button {
+  padding: 0.5em 1.1em;
+  font-size: 0.85rem;
+}
+.coach button.ghost {
+  color: var(--ink-soft);
+}
+button.small {
+  padding: 0.45em 1em;
+  font-size: 0.85rem;
+}
+
+/* ---------- out of a solo game ---------- */
+.spectating {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(255, 179, 167, 0.5);
+}
+.spectating .face {
+  font-size: 2.2rem;
+  grid-row: span 1;
+}
+.spectating b {
+  display: block;
+  font-size: 1.1rem;
+  color: #ffb3a7;
+}
+.spectating small {
+  opacity: 0.8;
+}
+.spectating-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ---------- game over ---------- */
+.over {
+  overflow-y: auto;
+}
+.standings {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  width: min(100%, 300px);
+  display: grid;
+  gap: 4px;
+}
+.standings li {
+  display: grid;
+  grid-template-columns: 3em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: left;
+  font-size: 0.9rem;
+}
+.standings li:first-child {
+  background: rgba(240, 194, 79, 0.2);
+}
+.standings li.me {
+  box-shadow: inset 0 0 0 2px var(--straw);
+}
+.standings .place {
+  font-weight: 700;
+  color: var(--straw);
+}
+.standings .turns {
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+.over .record {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+/* ---------- putting the chicken back ---------- */
+.pilestrip {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 18px 0 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.pilestrip .stripes {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 46px;
+}
+.pilestrip .stripes i {
+  flex: 1;
+  max-width: 10px;
+  height: 30px;
+  border-radius: 2px;
+  background: var(--cream-deep);
+}
+.pilestrip .stripes i.chicken {
+  position: relative;
+  max-width: 12px;
+  height: 40px;
+  background: var(--barn);
+}
+.pilestrip .stripes i.chicken b {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  translate: -50% 2px;
+  font-size: 1.1rem;
+}
+input.depth {
+  width: 100%;
+  accent-color: var(--barn);
+  height: 32px;
+  margin: 0;
+}
+.modal p.depth-label {
+  font-weight: 600;
+  color: var(--ink);
+  margin: 2px 0 12px;
+}
+
+/* ======================================================================
+   Landscape phones: table on the left, hand on the right
+   ====================================================================== */
+@media (orientation: landscape) and (max-height: 520px) {
+  .game {
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas:
+      "top top"
+      "seats hand"
+      "table hand"
+      "log hand";
+    column-gap: 14px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+  .game > .topbar {
+    grid-area: top;
+  }
+  .game > .opponents {
+    grid-area: seats;
+  }
+  .game > .tablewrap {
+    grid-area: table;
+    align-self: start;
+  }
+  .game > .log,
+  .game > .coach {
+    grid-area: log;
+  }
+  .game > .handwrap,
+  .game > .spectating {
+    grid-area: hand;
+    align-self: end;
+  }
+  /* Tips float in the space above the hand instead of taking the log's slot. */
+  .game > .coach {
+    position: fixed;
+    z-index: 10;
+    right: max(10px, env(safe-area-inset-right, 0px));
+    top: 36px;
+    width: calc(53% - 20px);
+    padding: 8px 12px;
+  }
+  .coach p {
+    font-size: 0.8rem;
+    margin: 2px 0 4px;
+  }
+  .coach::after {
+    display: none;
+  }
+  .opponents .seat {
+    padding: 4px;
+  }
+  .opponents .seat .face {
+    font-size: 1.2rem;
+  }
+  .opponents .seat .fan {
+    display: none;
+  }
+  .hand {
+    padding-top: 14px;
+  }
+  .selinfo {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+  }
+  .selinfo .text {
+    -webkit-line-clamp: 1;
+  }
+  /* The log only gets the height left over: its text must not size the row. */
+  .log {
+    min-height: 0;
+    contain: size;
+  }
+}
+
+/* ======================================================================
+   Tablets and desktops: everything bigger, log kept to a few lines
+   ====================================================================== */
+@media (min-width: 700px) and (min-height: 820px) {
+  :root {
+    --card-scale: 1.3;
+  }
+  :root[data-card-size="small"] {
+    --card-scale: 1.1;
+  }
+  :root[data-card-size="large"] {
+    --card-scale: 1.5;
+  }
+  .game {
+    max-width: 680px;
+    font-size: 1.12rem;
+    gap: 16px;
+    /* Plenty of height: keep the table together in the middle instead of stretching the log. */
+    grid-template-rows: repeat(5, auto);
+    align-content: center;
+  }
+  .topbar h1 {
+    font-size: 1.3rem;
+  }
+  .opponents .seat {
+    max-width: 180px;
+    padding: 12px 8px;
+  }
+  .opponents .seat .face {
+    font-size: 2.2rem;
+  }
+  .opponents .seat .name {
+    font-size: 1rem;
+  }
+  .pile {
+    width: 120px;
+    height: 166px;
+  }
+  .pile.draw .big {
+    font-size: 2.6rem;
+  }
+  .pile.discard .card.small {
+    width: 84px;
+    height: 118px;
+  }
+  .badge,
+  .known {
+    font-size: 0.9rem;
+  }
+  .log {
+    font-size: 0.95rem;
+    height: 6.8em;
+  }
+  .selinfo {
+    font-size: 0.92rem;
+  }
+  .actions button {
+    font-size: 1.1rem;
+  }
+}

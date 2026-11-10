@@ -63,8 +63,19 @@ describe("engine fuzz", () => {
           expect(s.players[s.current].alive).toBe(true);
           expect(JSON.stringify(s)).not.toBe(before);
           expect(++n).toBeLessThan(5000);
+          // What anyone "knows" about the pile must be true: people now see it on screen.
+          for (const [id, known] of Object.entries(s.botKnowledge)) {
+            known.forEach((k, i) => {
+              if (k !== null) expect(s.deck[i]?.kind, `player ${id} slot ${i}`).toBe(k);
+            });
+          }
         }
         expect(s.phase.type).toBe("gameOver");
+        // Everyone but the winner went out exactly once; the first player took at least one turn.
+        expect(s.outOrder).toHaveLength(s.players.length - 1);
+        expect(new Set(s.outOrder).size).toBe(s.players.length - 1);
+        expect(s.outOrder).not.toContain(s.winner);
+        expect(s.turnsTaken[s.players[0].id]).toBeGreaterThanOrEqual(1);
       }
     });
   }
