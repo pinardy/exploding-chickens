@@ -8,24 +8,28 @@ import { BOT_MOVE_MS, BOT_NOPE_MS, EVENT_MS, NOPE_WINDOW_MS, QUIP_MS } from "./c
  * closing. The engine itself has no notion of time.
  */
 export function useGameClock(state: GameState, setState: Dispatch<SetStateAction<GameState>>) {
+  // Once no person is left in the game, nobody needs to follow each move closely.
+  const pace = state.players.some((p) => p.isHuman && p.alive) ? 1 : 0.35;
   const showingEvent = state.event !== null;
+  // A person's own explosion gets the full moment even though they're out by then.
+  const eventIsPersons = state.players.some((p) => p.id === state.event?.playerId && p.isHuman);
   const bot = activeBot(state);
   const phaseType = state.phase.type;
 
   // Bots move one step at a time so you can watch them. They wait while an explosion is on screen.
   useEffect(() => {
     if (bot === null || showingEvent) return;
-    const delay = phaseType === "nopeWindow" ? BOT_NOPE_MS : BOT_MOVE_MS;
+    const delay = (phaseType === "nopeWindow" ? BOT_NOPE_MS : BOT_MOVE_MS) * pace;
     const t = setTimeout(() => setState((s) => botStep(s)), delay);
     return () => clearTimeout(t);
-  }, [state, bot, showingEvent, phaseType, setState]);
+  }, [state, bot, showingEvent, phaseType, setState, pace]);
 
   // Explosions and extinguishings get a moment on screen.
   useEffect(() => {
     if (!state.event) return;
-    const t = setTimeout(() => setState((s) => clearEvent(s)), EVENT_MS);
+    const t = setTimeout(() => setState((s) => clearEvent(s)), EVENT_MS * (eventIsPersons ? 1 : pace));
     return () => clearTimeout(t);
-  }, [state.event, setState]);
+  }, [state.event, setState, pace, eventIsPersons]);
 
   // Speech bubbles fade on their own; forget the quip once they have.
   const quipId = state.quip?.id;

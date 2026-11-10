@@ -38,9 +38,11 @@ import { NoWayModal } from "./modals/NoWayModal";
 import { PeekModal } from "./modals/PeekModal";
 import { PlaceChickenModal } from "./modals/PlaceChickenModal";
 import { TargetModal } from "./modals/TargetModal";
+import { COACH_DONE, COACH_TIPS, advanceCoach, skipCoach, useCoachStep } from "./coach";
+import { fastForward } from "./fastForward";
 import { clearSavedGame, saveGame } from "./savedGame";
-import { useSettings } from "./settings";
-import { recordGame } from "./stats";
+import { useSettings, vibrate } from "./settings";
+import { loadStats, recordGame, type Stats } from "./stats";
 import { useGameClock } from "./useGameClock";
 import { useSfx } from "./useSfx";
 
@@ -50,6 +52,8 @@ const DOUBLE_TAP_MS = 350;
 const DRAW_GUARD_MS = 500;
 /** How long "Tap again to draw" stays armed when draws need confirming. */
 const DRAW_ARM_MS = 2500;
+/** How long the "Your turn" toast stays up. */
+const TURN_TOAST_MS = 1300;
 
 interface Props {
   setup: GameSetup;
@@ -86,10 +90,12 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   useSfx(state, curtainUp, settings);
 
   const recorded = useRef(false);
+  const [stats, setStats] = useState<Stats | null>(null);
   useEffect(() => {
     if (state.winner === null || recorded.current) return;
     recorded.current = true;
     recordGame(state.players.length - 1, state.mode === "solo" && state.winner === 0);
+    setStats(loadStats());
   }, [state.winner, state.players.length, state.mode]);
 
   // Keep the game on the device until it's over.
@@ -159,8 +165,36 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
     if (settings.confirmDraw && !drawArmed) return setDrawArmed(true);
     setDrawArmed(false);
     setSelected([]);
+    advanceCoach(COACH_DONE);
     setState(drawCard);
   };
+
+  // ---- "Your turn": a toast, a buzz and a glow on the hand when a new turn of yours starts ----
+  const turnLogId = [...state.log].reverse().find((l) => l.tone === "turn")?.id ?? null;
+  const turnMark = cur.id === me.id && me.alive ? turnLogId : null;
+  const [toast, setToast] = useState<number | null>(null);
+  useEffect(() => {
+    if (turnMark === null) return;
+    vibrate(25, settings);
+    if (hotseat) return; // the pass-the-phone screen already says so
+    setToast(turnMark);
+    const t = setTimeout(() => setToast(null), TURN_TOAST_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per new turn, not on settings changes
+  }, [turnMark]);
+
+  // ---- first-game tips ----
+  const coach = useCoachStep();
+  useEffect(() => {
+    if (selected.length > 0) advanceCoach(1);
+  }, [selected.length]);
+  useEffect(() => {
+    if (state.lastPlay?.actorId === me.id) advanceCoach(2);
+  }, [state.lastPlay, me.id]);
+  const showCoach = coach < COACH_DONE && canAct;
+
+  // ---- out of a solo game: watch, skip to the end, or start again ----
+  const spectating = state.mode === "solo" && !me.alive && state.winner === null;
 
   const takePhone = (playerId: number) => {
     setViewer(playerId);
@@ -199,29 +233,92 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
         currentId={cur.id}
         thinkingId={showingEvent ? null : activeBot(state)}
         quip={state.quip}
+        lastPlay={state.lastPlay}
       />
-      <Table state={state} canDraw={myTurn} drawArmed={drawArmed} onDraw={draw} onShowPile={() => setSheet("pile")} />
-
-      <button type="button" className="log" aria-live="polite" aria-label="Game log. Tap for the full history." onClick={() => setSheet("log")}>
-        {state.log.slice(-10).map((l) => (
-          <span key={l.id} className={l.tone}>
-            {l.text}
-          </span>
-        ))}
-      </button>
-
-      <Hand
-        hand={me.hand}
-        selected={selected}
-        playable={playable}
+      <Table
+        state={state}
+        viewerId={me.id}
         canDraw={myTurn}
         drawArmed={drawArmed}
-        onToggle={toggleCard}
-        onQuickPlay={quickPlay}
-        onHold={setReading}
-        onPlay={() => play()}
         onDraw={draw}
+        onShowPile={() => setSheet("pile")}
       />
+
+      {showCoach ? (
+        <div className="coach" role="note">
+          <div className="coach-step" aria-hidden="true">
+            {COACH_TIPS.map((_, i) => (
+              <i key={i} className={i === coach ? "on" : ""} />
+            ))}
+          </div>
+          <p>
+            <span className="coach-icon">{COACH_TIPS[coach].icon}</span> {COACH_TIPS[coach].text}
+          </p>
+          <div className="coach-buttons">
+            <button type="button" className="ghost" onClick={skipCoach}>
+              Skip tips
+            </button>
+            <button type="button" className="secondary" onClick={() => advanceCoach(coach + 1)}>
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="log" aria-live="polite" aria-label="Game log. Tap for the full history." onClick={() => setSheet("log")}>
+          {state.log.slice(-10).map((l) => (
+            <span key={l.id} className={l.tone}>
+              {l.text}
+            </span>
+          ))}
+        </button>
+      )}
+
+      {spectating ? (
+        <div className="spectating">
+          <div className="face">🍗</div>
+          <div>
+            <b>You’re out!</b>
+            <small>
+              {alivePlayers(state).length} bots still playing · {state.deck.length} cards left
+            </small>
+          </div>
+          <div className="spectating-buttons">
+            <button type="button" onClick={() => setState(fastForward)}>
+              Skip to result
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                clearSavedGame();
+                onNewGame();
+              }}
+            >
+              New game
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Hand
+          hand={me.hand}
+          selected={selected}
+          playable={playable}
+          canDraw={myTurn}
+          drawArmed={drawArmed}
+          active={canAct}
+          onToggle={toggleCard}
+          onQuickPlay={quickPlay}
+          onHold={setReading}
+          onPlay={() => play()}
+          onDraw={draw}
+        />
+      )}
+
+      {toast !== null && (
+        <div key={toast} className="turn-toast" aria-hidden="true">
+          Your turn
+        </div>
+      )}
 
       {reading && <CardDetailModal card={reading} onClose={() => setReading(null)} />}
       {sheet === "settings" && (
@@ -274,7 +371,7 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
 
       {state.event && <Boom type={state.event.type} player={playerById(state, state.event.playerId)} />}
       {state.winner !== null && !showingEvent && (
-        <GameOver winner={playerById(state, state.winner)} isYou={isYou(state, me) && state.winner === me.id} onPlayAgain={onNewGame} onMenu={onExit} />
+        <GameOver state={state} viewerId={me.id} stats={stats} onPlayAgain={onNewGame} onMenu={onExit} />
       )}
     </div>
   );

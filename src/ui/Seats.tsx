@@ -1,4 +1,4 @@
-import type { Player, Quip } from "../game";
+import type { LastPlay, Player, Quip } from "../game";
 
 /** From this many opponents the seats shrink to one compact row so the hand stays on screen. */
 const COMPACT_FROM = 4;
@@ -9,15 +9,18 @@ interface Props {
   /** The bot currently deciding, if any: its seat wobbles. */
   thinkingId: number | null;
   quip: Quip | null;
+  /** The latest play: if it was aimed at someone here, their seat flashes. */
+  lastPlay: LastPlay | null;
 }
 
 /** The other players around the table, with card counts, a thinking wobble and speech bubbles. */
-export function Seats({ players, currentId, thinkingId, quip }: Props) {
+export function Seats({ players, currentId, thinkingId, quip, lastPlay }: Props) {
   return (
     <div className={`opponents ${players.length >= COMPACT_FROM ? "compact" : ""}`}>
       {players.map((p) => (
         <div
           key={p.id}
+          data-seat={p.id}
           className={["seat", currentId === p.id && "active", !p.alive && "out", thinkingId === p.id && "thinking"].filter(Boolean).join(" ")}
         >
           {quip?.playerId === p.id && (
@@ -32,6 +35,7 @@ export function Seats({ players, currentId, thinkingId, quip }: Props) {
               <i />
             </div>
           )}
+          {lastPlay?.targetId === p.id && <span key={lastPlay.id} className="ping" aria-hidden="true" />}
           <div className="face">{p.alive ? p.avatar : "🍗"}</div>
           <div className="name">{p.name}</div>
           <div className="count">{p.alive ? `${p.hand.length} card${p.hand.length === 1 ? "" : "s"}` : "out"}</div>

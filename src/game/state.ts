@@ -62,7 +62,16 @@ export type Phase =
 export interface LogEntry {
   id: number;
   text: string;
-  tone: "normal" | "bad" | "good";
+  /** "turn" marks whose turn it now is; the UI shows it as a divider rather than a line. */
+  tone: "normal" | "bad" | "good" | "turn";
+}
+
+/** The cards most recently played (or used to say No Way), so the UI can show where they came from. */
+export interface LastPlay {
+  id: number;
+  actorId: number;
+  cardIds: number[];
+  targetId?: number;
 }
 
 export interface GameEvent {
@@ -100,11 +109,19 @@ export interface GameState {
   event: GameEvent | null;
   /** Last sound cue, with a fresh id each time so the UI plays it exactly once. */
   sfx: { id: number; name: SfxName } | null;
-  /** What each bot believes the top of the pile is, top-down, from Peeks and its own chicken placement. null = unknown slot. */
+  /**
+   * What each player knows about the top of the pile, top-down, from Peeks and their own chicken
+   * placement. null = unknown slot. (Named for the bots, which act on it; people see theirs on screen.)
+   */
   botKnowledge: Record<number, (CardKind | null)[]>;
   /** How many Extinguishers each player has been seen to use. Public information. */
   extinguishersUsed: Record<number, number>;
   quip: Quip | null;
+  lastPlay: LastPlay | null;
+  /** Player ids in the order they exploded. */
+  outOrder: number[];
+  /** How many turns each player has started. */
+  turnsTaken: Record<number, number>;
   winner: number | null;
   nextId: number;
 }
@@ -234,9 +251,12 @@ export function newGame(setup: GameSetup): GameState {
     log: [],
     event: null,
     sfx: null,
-    botKnowledge: Object.fromEntries(players.filter((p) => !p.isHuman).map((p) => [p.id, []])),
+    botKnowledge: Object.fromEntries(players.map((p) => [p.id, []])),
     extinguishersUsed: Object.fromEntries(players.map((p) => [p.id, 0])),
     quip: null,
+    lastPlay: null,
+    outOrder: [],
+    turnsTaken: Object.fromEntries(players.map((p, i) => [p.id, i === 0 ? 1 : 0])),
     winner: null,
     nextId,
   };

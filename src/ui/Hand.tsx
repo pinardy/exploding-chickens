@@ -18,6 +18,8 @@ interface Props {
   canDraw: boolean;
   /** Draws need confirming and the first tap has happened. */
   drawArmed: boolean;
+  /** It's your move: the hand glows. */
+  active: boolean;
   onToggle: (cardId: number) => void;
   onQuickPlay: (cardId: number) => void;
   onHold: (card: Card) => void;
@@ -57,7 +59,7 @@ function useFan(count: number) {
 }
 
 /** The viewer's cards and the Play / Draw buttons. Tap to select, hold to read, double-tap or swipe up to play. */
-export function Hand({ hand, selected, playable, canDraw, drawArmed, onToggle, onQuickPlay, onHold, onPlay, onDraw }: Props) {
+export function Hand({ hand, selected, playable, canDraw, drawArmed, active, onToggle, onQuickPlay, onHold, onPlay, onDraw }: Props) {
   const sorted = useMemo(() => hand.slice().sort(byKind), [hand]);
   const { ref, overlap } = useFan(sorted.length);
 
@@ -68,7 +70,7 @@ export function Hand({ hand, selected, playable, canDraw, drawArmed, onToggle, o
   const info = first && CARD_INFO[first.kind];
 
   return (
-    <div className="handwrap">
+    <div className={`handwrap ${active ? "active" : ""}`}>
       {first && info && (
         <button type="button" className={`selinfo ${error ? "err" : ""}`} onClick={() => onHold(first)} aria-label={`${info.name}: ${info.text} Tap for the full card.`}>
           <span className="text">
