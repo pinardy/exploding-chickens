@@ -300,6 +300,11 @@ function resolveAction(s: GameState, a: PendingAction) {
 
     case "bottom": {
       const card = s.deck.pop()!;
+      // Positions from the top don't move, but anything known about the old bottom card is gone.
+      for (const k of Object.keys(s.botKnowledge)) {
+        const known = s.botKnowledge[Number(k)];
+        if (known.length > s.deck.length) known.length = s.deck.length;
+      }
       narrate.drewFromBottom(s, p);
       receiveDraw(s, p, card);
       return;
