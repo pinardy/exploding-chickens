@@ -3,4 +3,4 @@ export * from "./cards";
 export * from "./state";
 export * from "./rules";
 export { activeBot, botStep } from "./bot";
-export { actionLabel } from "./narrate";
+export { actionLabel, askingFor } from "./narrate";

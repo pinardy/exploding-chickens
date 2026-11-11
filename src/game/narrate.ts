@@ -2,10 +2,11 @@
 // In solo mode the human is "you" and may be told their own cards; in pass & play
 // everyone is named and cards stay unnamed, since the next person will read the log.
 
-import { cardName, type Card } from "./cards";
+import { CARD_INFO, cardName, type Card, type CardKind } from "./cards";
 import { isYou, log, type GameState, type PendingAction, type Player } from "./state";
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const withArticle = (name: string) => `${/^[AEIOU]/i.test(name) ? "an" : "a"} ${name}`;
 
 /** "You" / "Nugget", and the matching verb form: who(s, p, "win", "wins"). */
 function who(s: GameState, p: Player, youVerb: string, nameVerb: string) {
@@ -13,7 +14,14 @@ function who(s: GameState, p: Player, youVerb: string, nameVerb: string) {
 }
 
 export function actionLabel(a: PendingAction): string {
-  return a.kind === "pair" ? `a pair of ${cardName(a.cards[0])}s` : cardName(a.cards[0]);
+  if (a.kind === "pair") return `a pair of ${cardName(a.cards[0])}s`;
+  if (a.kind === "triple") return `three ${cardName(a.cards[0])}s`;
+  return cardName(a.cards[0]);
+}
+
+/** ", asking for an Extinguisher" for three of a kind; goes after the target, if any. */
+export function askingFor(a: PendingAction): string {
+  return a.kind === "triple" && a.named ? `, asking for ${withArticle(CARD_INFO[a.named].name)}` : "";
 }
 
 export const narrate = {
@@ -54,7 +62,7 @@ export const narrate = {
   },
 
   played(s: GameState, p: Player, a: PendingAction, target: Player | null) {
-    log(s, `${p.name} played ${actionLabel(a)}${target ? ` on ${isYou(s, target) ? "you" : target.name}` : ""}.`);
+    log(s, `${p.name} played ${actionLabel(a)}${target ? ` on ${isYou(s, target) ? "you" : target.name}` : ""}${askingFor(a)}.`);
   },
 
   noWay(s: GameState, h: Player, actor: Player) {
@@ -121,6 +129,15 @@ export const narrate = {
 
   discarded(s: GameState, p: Player, cards: Card[]) {
     log(s, isYou(s, p) ? `You discard ${cards.map(cardName).join(" and ")}.` : `${p.name} discards ${plural(cards.length, "card")}.`);
+  },
+
+  /** Three of a kind: the named card is public, so it's said aloud even in pass & play. */
+  namedTake(s: GameState, asker: Player, target: Player, kind: CardKind, got: boolean) {
+    const card = withArticle(CARD_INFO[kind].name);
+    if (!got) log(s, `${isYou(s, target) ? "You don't" : `${target.name} doesn't`} have ${card}.`);
+    else if (isYou(s, asker)) log(s, `You take ${card} from ${target.name}!`, "good");
+    else if (isYou(s, target)) log(s, `${asker.name} takes your ${CARD_INFO[kind].name}!`, "bad");
+    else log(s, `${asker.name} takes ${card} from ${target.name}.`);
   },
 
   stole(s: GameState, thief: Player, victim: Player, card: Card) {

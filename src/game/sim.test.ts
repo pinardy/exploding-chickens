@@ -2,8 +2,10 @@
 import { describe, expect, it } from "vitest";
 import {
   activeBot, activeHuman, botStep, canPlay, discardCards, dismissPeek, drawCard, giveFavorCard, letItHappen,
-  placeChicken, playCards, playerById, sayNoWay, startGame, HAND_LIMIT, type GameSetup, type GameState,
+  placeChicken, playCards, playerById, sayNoWay, startGame, HAND_LIMIT, type CardKind, type GameSetup, type GameState,
 } from "./index";
+
+const NAMEABLE: CardKind[] = ["extinguisher", "noway", "skip", "favor", "hen", "hot"];
 
 function randomHumanMove(s: GameState, id: number): GameState {
   const me = playerById(s, id);
@@ -14,6 +16,11 @@ function randomHumanMove(s: GameState, id: number): GameState {
   if (s.phase.type !== "turn") throw new Error(`unexpected phase ${s.phase.type}`);
   const target = s.players.find((p) => p.alive && p.id !== id)?.id;
   if (Math.random() < 0.4) {
+    // Three of a kind, naming a random card.
+    for (const c of me.hand) {
+      const same = me.hand.filter((d) => d.kind === c.kind).map((d) => d.id).slice(0, 3);
+      if (same.length === 3 && canPlay(s, id, same) === "triple") return playCards(s, id, same, target, NAMEABLE[Math.floor(Math.random() * NAMEABLE.length)]);
+    }
     for (const c of me.hand) if (typeof canPlay(s, id, [c.id]) === "string") return playCards(s, id, [c.id], target);
     for (const c of me.hand) for (const d of me.hand) {
       if (c.id !== d.id && typeof canPlay(s, id, [c.id, d.id]) === "string") return playCards(s, id, [c.id, d.id], target);
@@ -79,4 +86,38 @@ describe("engine fuzz", () => {
       }
     });
   }
+});
+
+describe("three of a kind", () => {
+  it("takes the named card when the target has one, and nothing otherwise", () => {
+    const base = startGame({ mode: "solo", count: 1, difficulty: "chick", handLimit: null, quick: false, expansion: false });
+    const [me, bot] = base.players;
+    const hens = [900, 901, 902].map((id) => ({ id, kind: "hen" as const }));
+    me.hand = [...hens];
+    bot.hand = [{ id: 950, kind: "noway" }, { id: 951, kind: "skip" }];
+
+    expect(canPlay(base, me.id, hens.map((c) => c.id))).toBe("triple");
+    // Needs a named card.
+    expect(playCards(base, me.id, hens.map((c) => c.id), bot.id)).toEqual(base);
+
+    // Asking for a Skip: the bot's No Way window opens first; let it pass.
+    let s = playCards(base, me.id, hens.map((c) => c.id), bot.id, "skip");
+    if (s.phase.type === "nopeWindow") s = letItHappen(s);
+    expect(s.players[0].hand.map((c) => c.kind)).toEqual(["skip"]);
+    expect(s.players[1].hand.map((c) => c.kind)).toEqual(["noway"]);
+    expect(s.discard.slice(-3).map((c) => c.kind)).toEqual(["hen", "hen", "hen"]);
+
+    // Asking for something they don't have: nothing moves.
+    s = playCards(base, me.id, hens.map((c) => c.id), bot.id, "extinguisher");
+    if (s.phase.type === "nopeWindow") s = letItHappen(s);
+    expect(s.players[0].hand).toEqual([]);
+    expect(s.players[1].hand).toHaveLength(2);
+    expect(s.log[s.log.length - 1]?.text).toMatch(/doesn't have an Extinguisher/);
+  });
+
+  it("rejects three cards that don't match", () => {
+    const s = startGame({ mode: "solo", count: 1, difficulty: "chick", handLimit: null, quick: false, expansion: false });
+    s.players[0].hand = [{ id: 900, kind: "hen" }, { id: 901, kind: "hen" }, { id: 902, kind: "egg" }];
+    expect(canPlay(s, 0, [900, 901, 902])).toEqual({ error: "Three cards only work as matching chickens." });
+  });
 });

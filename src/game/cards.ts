@@ -16,8 +16,8 @@ export type ActionKind =
   | "scramble";
 export type CardKind = "chicken" | "extinguisher" | "noway" | "hot" | ActionKind | PlainKind;
 
-/** What a play resolves to. "pair" is two matching plain chickens. */
-export type PlayKind = ActionKind | "pair";
+/** What a play resolves to. "pair" is two matching plain chickens, "triple" three. */
+export type PlayKind = ActionKind | "pair" | "triple";
 
 export interface Card {
   id: number;
@@ -32,7 +32,7 @@ export interface CardInfo {
   hue: string; // CSS color for the card's band
 }
 
-const PLAIN_TEXT = "Plain chicken. Play two of a kind to steal a random card.";
+const PLAIN_TEXT = "Plain chicken. Play two of a kind to steal a random card, or three of a kind to name the card you want.";
 
 export const CARD_INFO: Record<CardKind, CardInfo> = {
   chicken: { name: "Exploding Chicken", emoji: "💥", text: "Draw this and you're cooked — unless you have an Extinguisher.", short: "You're cooked.", hue: "#b5392c" },
@@ -53,7 +53,7 @@ export const CARD_INFO: Record<CardKind, CardInfo> = {
   hen: { name: "Hen", emoji: "🐔", text: PLAIN_TEXT, short: "Pair up to steal.", hue: "#8c6a4a" },
   rooster: { name: "Rooster", emoji: "🐓", text: PLAIN_TEXT, short: "Pair up to steal.", hue: "#8c6a4a" },
   chick: { name: "Chick", emoji: "🐥", text: PLAIN_TEXT, short: "Pair up to steal.", hue: "#8c6a4a" },
-  egg: { name: "Egg", emoji: "🥚", text: "Plain chicken (almost). Play two of a kind to steal a random card.", short: "Pair up to steal.", hue: "#8c6a4a" },
+  egg: { name: "Egg", emoji: "🥚", text: "Plain chicken (almost). Play two of a kind to steal a random card, or three of a kind to name the card you want.", short: "Pair up to steal.", hue: "#8c6a4a" },
 };
 
 export const PLAIN_KINDS: PlainKind[] = ["hen", "rooster", "chick", "egg"];
@@ -102,6 +102,9 @@ export const BASE_EXTRAS: Partial<Record<CardKind, number>> = { reverse: 4 };
 
 export const isPlain = (k: CardKind): k is PlainKind => (PLAIN_KINDS as CardKind[]).includes(k);
 
-export const needsTarget = (kind: PlayKind): boolean => kind === "favor" || kind === "pair" || kind === "fox";
+export const needsTarget = (kind: PlayKind): boolean => kind === "favor" || kind === "pair" || kind === "triple" || kind === "fox";
+
+/** Three of a kind also needs the card being asked for. */
+export const needsNamedCard = (kind: PlayKind): boolean => kind === "triple";
 
 export const cardName = (c: Card) => CARD_INFO[c.kind].name;

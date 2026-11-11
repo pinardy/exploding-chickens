@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { type Player, actionLabel, type PendingAction } from "../../game";
+import { type Player, actionLabel, askingFor, type PendingAction } from "../../game";
 import { Modal } from "./Modal";
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 export function NoWayModal({ action, actor, candidates, viewerId, hotseat, seconds, onNoWay, onLetItHappen }: Props) {
   const onYou = action.targetId === viewerId ? " on you" : "";
   return (
-    <Modal title={`${actor.name} played ${actionLabel(action)}${onYou}`}>
+    <Modal title={`${actor.name} played ${actionLabel(action)}${onYou}${askingFor(action)}`}>
       <p>{hotseat ? "Anyone holding a No Way card can cancel it. Quick!" : "Cancel it with No Way?"}</p>
       {/* keyed on the action so the bar restarts for each new window */}
       <div className="countdown" key={action.cards[0].id} style={{ "--secs": `${seconds}s` } as CSSProperties}>

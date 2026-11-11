@@ -10,7 +10,7 @@ interface Props {
 
 export function TargetModal({ kind, targets, onPick, onCancel }: Props) {
   return (
-    <Modal title={kind === "pair" ? "Steal from whom?" : kind === "fox" ? "Send the fox to whom?" : "Ask whom for a favor?"}>
+    <Modal title={kind === "pair" ? "Steal from whom?" : kind === "triple" ? "Who do you want a card from?" : kind === "fox" ? "Send the fox to whom?" : "Ask whom for a favor?"}>
       <div className="targets">
         {targets.map((p) => (
           <button key={p.id} type="button" className="secondary" disabled={p.hand.length === 0} onClick={() => onPick(p.id)}>

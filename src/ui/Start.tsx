@@ -75,6 +75,13 @@ export function Start({ saved, onStart, onResume, onDiscardSaved }: Props) {
       {stats.games > 0 && (
         <p className="tally">
           {stats.games} game{stats.games === 1 ? "" : "s"} played on this phone. {stats.explosions} chicken{stats.explosions === 1 ? "" : "s"} exploded.
+          {stats.bestStreak > 0 && (
+            <>
+              {" "}
+              Win streak: {stats.streak}
+              {stats.bestStreak > stats.streak ? ` (best ${stats.bestStreak})` : stats.streak > 1 ? " 🔥" : ""}.
+            </>
+          )}
         </p>
       )}
 
@@ -127,6 +134,17 @@ export function Start({ saved, onStart, onResume, onDiscardSaved }: Props) {
             <button key={l.value} type="button" className={difficulty === l.value ? "" : "off"} onClick={() => setDifficulty(l.value)}>
               <span>{l.label}</span>
               <small>{l.hint}</small>
+              {stats.byLevel[l.value].games > 0 && (
+                <small className="level-record">
+                  Won {stats.byLevel[l.value].wins} of {stats.byLevel[l.value].games}
+                  {stats.byLevel[l.value].wins === 0 && stats.byLevel[l.value].best > 1 && (
+                    <>
+                      <br />
+                      Best: {ordinal(stats.byLevel[l.value].best)}
+                    </>
+                  )}
+                </small>
+              )}
             </button>
           ))}
         </div>
@@ -178,7 +196,7 @@ export function Start({ saved, onStart, onResume, onDiscardSaved }: Props) {
           <li>On your turn, play as many action cards as you like, then draw one card to end it.</li>
           <li>Draw an Exploding Chicken and you’re out — unless you hold an Extinguisher. Then you put the chicken back in the pile wherever you want.</li>
           <li>Skip, Reverse and Double Peck end your turn without drawing. Double Peck makes the next player take two turns, and it stacks.</li>
-          <li>Two matching plain chickens steal a random card. Favor makes someone hand you a card of their choice.</li>
+          <li>Two matching plain chickens steal a random card; three let you name the card you want. Favor makes someone hand you a card of their choice.</li>
           <li>No Way cancels an opponent’s action card. You get a few seconds to use it.</li>
           <li>Tap a card to select it; press and hold to read what it does. Double-tap or swipe a card up to play it straight away.</li>
           <li>Tap the log to see everything that’s happened, and the discard pile to see what’s been played.</li>
@@ -227,3 +245,5 @@ function describeSaved({ state }: SavedGame): string {
   const who = state.mode === "solo" ? `vs ${state.players.length - 1} bot${state.players.length === 2 ? "" : "s"}` : `${state.players.length} players`;
   return `${state.mode === "solo" ? "Solo" : "Pass & play"} ${who} · ${alive} still in · ${state.deck.length} cards left`;
 }
+
+const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;

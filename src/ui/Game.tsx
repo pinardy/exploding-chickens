@@ -12,12 +12,14 @@ import {
   isTurnOf,
   isYou,
   letItHappen,
+  needsNamedCard,
   needsTarget,
   placeChicken,
   playCards,
   playerById,
   sayNoWay,
   type Card,
+  type CardKind,
   type GameSetup,
   type GameState,
 } from "../game";
@@ -37,12 +39,13 @@ import { SettingsModal } from "./modals/SettingsModal";
 import { NoWayModal } from "./modals/NoWayModal";
 import { PeekModal } from "./modals/PeekModal";
 import { PlaceChickenModal } from "./modals/PlaceChickenModal";
+import { NameCardModal } from "./modals/NameCardModal";
 import { TargetModal } from "./modals/TargetModal";
 import { COACH_DONE, COACH_TIPS, advanceCoach, skipCoach, useCoachStep } from "./coach";
 import { fastForward } from "./fastForward";
 import { clearSavedGame, saveGame } from "./savedGame";
-import { useSettings, vibrate } from "./settings";
-import { loadStats, recordGame, type Stats } from "./stats";
+import { BOT_SPEED_PACE, useSettings, vibrate } from "./settings";
+import { recordGame, type Stats } from "./stats";
 import { useGameClock } from "./useGameClock";
 import { useSfx } from "./useSfx";
 
@@ -72,6 +75,8 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   const [hidden, setHidden] = useState(resumed && initial.mode === "hotseat");
   const [picked, setSelected] = useState<number[]>([]);
   const [choosingTarget, setChoosingTarget] = useState(false);
+  /** Three of a kind: the player picked, while choosing which card to ask them for. */
+  const [naming, setNaming] = useState<number | null>(null);
   const [reading, setReading] = useState<Card | null>(null);
   const [sheet, setSheet] = useState<"settings" | "log" | "pile" | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);
@@ -86,7 +91,7 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   const needsPhone = activeHuman(state);
   const curtainUp = needsPhone !== null && (needsPhone !== viewer || hidden) && !showingEvent;
 
-  useGameClock(state, setState);
+  useGameClock(state, setState, BOT_SPEED_PACE[settings.botSpeed]);
   useSfx(state, curtainUp, settings);
 
   const recorded = useRef(false);
@@ -94,9 +99,21 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   useEffect(() => {
     if (state.winner === null || recorded.current) return;
     recorded.current = true;
-    recordGame(state.players.length - 1, state.mode === "solo" && state.winner === 0);
-    setStats(loadStats());
-  }, [state.winner, state.players.length, state.mode]);
+    setStats(
+      recordGame({
+        explosions: state.players.length - 1,
+        solo:
+          state.mode === "solo"
+            ? {
+                difficulty: state.difficulty,
+                won: state.winner === 0,
+                // Out first of six is 6th; the winner is 1st.
+                place: state.winner === 0 ? 1 : state.players.length - (state.outOrder ?? []).indexOf(0),
+              }
+            : null,
+      }),
+    );
+  }, [state.winner, state.players.length, state.mode, state.difficulty]);
 
   // Keep the game on the device until it's over.
   useEffect(() => {
@@ -106,7 +123,7 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
 
   // Draw becomes live a moment after your turn (or a sheet over it) starts, so a tap aimed at
   // the previous screen doesn't end your turn.
-  const canAct = myTurn && !curtainUp && !showingEvent && sheet === null && !choosingTarget;
+  const canAct = myTurn && !curtainUp && !showingEvent && sheet === null && !choosingTarget && naming === null;
   const drawReadyAt = useRef(0);
   useEffect(() => {
     if (canAct) drawReadyAt.current = Date.now() + DRAW_GUARD_MS;
@@ -125,25 +142,31 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   const playKind = typeof playable === "string" ? playable : null;
 
   /** Play `ids` (the selection by default), asking for a target first if the card needs one. */
-  const play = (ids: number[] = selected, targetId?: number) => {
+  const play = (ids: number[] = selected, targetId?: number, named?: CardKind) => {
     const kind = myTurn && ids.length > 0 ? canPlay(state, me.id, ids) : null;
     if (typeof kind !== "string") return setSelected(ids); // leaves the reason on screen
     if (needsTarget(kind) && targetId === undefined) {
       setSelected(ids);
       return setChoosingTarget(true);
     }
+    if (needsNamedCard(kind) && named === undefined) {
+      setSelected(ids);
+      setChoosingTarget(false);
+      return setNaming(targetId!);
+    }
     setChoosingTarget(false);
-    setState((s) => playCards(s, me.id, ids, targetId));
+    setNaming(null);
+    setState((s) => playCards(s, me.id, ids, targetId, named));
     setSelected([]);
   };
 
-  // Double-tap (or swipe up) plays a card straight away. A double-tap on the second card of
-  // a selected pair plays the pair.
+  // Double-tap (or swipe up) plays a card straight away. On a card that's part of a selected
+  // pair or three of a kind, it plays the whole set.
   const quickPlay = (id: number) => {
     if (!myTurn) return;
     unlockAudio();
-    const pair = selected.length === 2 && selected.includes(id) && typeof canPlay(state, me.id, selected) === "string";
-    play(pair ? selected : [id]);
+    const set = selected.length >= 2 && selected.includes(id) && typeof canPlay(state, me.id, selected) === "string";
+    play(set ? selected : [id]);
   };
 
   const lastTap = useRef<{ id: number; at: number } | null>(null);
@@ -157,7 +180,7 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
       lastTap.current = null;
       return quickPlay(id);
     }
-    setSelected((sel) => (sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id].slice(-2)));
+    setSelected((sel) => (sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id].slice(-3)));
   };
 
   const draw = () => {
@@ -343,6 +366,14 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
       )}
       {choosingTarget && playKind && (
         <TargetModal kind={playKind} targets={alivePlayers(state).filter((p) => p.id !== me.id)} onPick={(target) => play(selected, target)} onCancel={() => setChoosingTarget(false)} />
+      )}
+      {naming !== null && playKind === "triple" && (
+        <NameCardModal
+          targetName={playerById(state, naming).name}
+          expansion={state.expansion}
+          onName={(kind) => play(selected, naming, kind)}
+          onCancel={() => setNaming(null)}
+        />
       )}
       {phase.type === "peek" && <PeekModal cards={phase.cards} onDone={() => setState(dismissPeek)} />}
       {phase.type === "placeChicken" && !showingEvent && cur.isHuman && (

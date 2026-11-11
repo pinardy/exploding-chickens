@@ -1,4 +1,5 @@
 import { isYou, playerById, type GameState, type Player } from "../game";
+import type { Difficulty } from "../game";
 import type { Stats } from "./stats";
 
 interface Props {
@@ -32,9 +33,9 @@ export function GameOver({ state, viewerId, stats, onPlayAgain, onMenu }: Props)
   const turns = state.turnsTaken?.[viewer.id] ?? 0;
 
   return (
-    <div className="over">
+    <div className="over" role="dialog" aria-modal="true" aria-labelledby="over-title">
       <div className="trophy">{won || !solo ? "🏆" : "🍗"}</div>
-      <h2>{won ? "You win!" : `${winner.name} wins!`}</h2>
+      <h2 id="over-title">{won ? "You win!" : `${winner.name} wins!`}</h2>
       {solo ? (
         <p>
           {won ? "Last chicken standing. " : `You finished ${ordinal(place)} of ${table.length}. `}
@@ -58,18 +59,41 @@ export function GameOver({ state, viewerId, stats, onPlayAgain, onMenu }: Props)
         ))}
       </ol>
 
-      {solo && stats && stats.games > 0 && (
-        <p className="record">
-          On this phone: {stats.wins} solo win{stats.wins === 1 ? "" : "s"} in {stats.games} game{stats.games === 1 ? "" : "s"}
-        </p>
-      )}
+      {solo && stats && <Record stats={stats} difficulty={state.difficulty} won={won} />}
 
-      <button type="button" onClick={onPlayAgain}>
+      {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the game is over; this is the next step */}
+      <button type="button" autoFocus onClick={onPlayAgain}>
         Play again
       </button>
       <button type="button" className="ghost" onClick={onMenu}>
         Back to menu
       </button>
     </div>
+  );
+}
+
+const LEVEL_NAMES: Record<Difficulty, string> = { chick: "Chick", hen: "Hen", rooster: "Rooster" };
+
+/** Your record at this difficulty, and the win streak. */
+function Record({ stats, difficulty, won }: { stats: Stats; difficulty: Difficulty; won: boolean }) {
+  const level = stats.byLevel[difficulty];
+  const newBest = won && stats.streak > 1 && stats.streak === stats.bestStreak;
+  return (
+    <p className="record">
+      Against {LEVEL_NAMES[difficulty]} bots: {level.wins} win{level.wins === 1 ? "" : "s"} in {level.games} game{level.games === 1 ? "" : "s"}
+      {won ? (
+        <>
+          <br />
+          {stats.streak} win{stats.streak === 1 ? "" : "s"} in a row{newBest ? " · a new best! 🔥" : ` · best ${stats.bestStreak}`}
+        </>
+      ) : (
+        stats.bestStreak > 0 && (
+          <>
+            <br />
+            Win streak reset · best {stats.bestStreak}
+          </>
+        )
+      )}
+    </p>
   );
 }

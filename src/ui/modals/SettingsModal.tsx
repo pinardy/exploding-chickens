@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { isMuted, setMuted, unlockAudio } from "../../sounds";
 import { COACH_DONE, resetCoach, useCoachStep } from "../coach";
-import { useSettings, type CardSize } from "../settings";
+import { useSettings, type BotSpeed, type CardSize } from "../settings";
 import { Modal } from "./Modal";
+
+const SPEEDS: { value: BotSpeed; label: string }[] = [
+  { value: "slow", label: "Slow" },
+  { value: "normal", label: "Normal" },
+  { value: "fast", label: "Fast" },
+];
 
 const SIZES: { value: CardSize; label: string }[] = [
   { value: "small", label: "Small" },
@@ -57,6 +63,19 @@ export function SettingsModal({ onClose, game }: { onClose: () => void; game?: G
         <div className="segmented" role="group" aria-label="Card size">
           {SIZES.map((s) => (
             <button key={s.value} type="button" className={settings.cardSize === s.value ? "" : "off"} onClick={() => update({ cardSize: s.value })}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="setting">
+        <span>
+          Bot speed
+          <small>How quickly computer players move</small>
+        </span>
+        <div className="segmented" role="group" aria-label="Bot speed">
+          {SPEEDS.map((s) => (
+            <button key={s.value} type="button" className={settings.botSpeed === s.value ? "" : "off"} onClick={() => update({ botSpeed: s.value })}>
               {s.label}
             </button>
           ))}

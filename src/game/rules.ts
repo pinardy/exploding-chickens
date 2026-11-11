@@ -3,7 +3,7 @@
 // chicken back, which card to hand over, whether to say No Way) are exposed as
 // phases, so humans and bots use the same entry points.
 
-import { isPlain, type Card, type PlayKind } from "./cards";
+import { isPlain, needsNamedCard, type Card, type CardKind, type PlayKind } from "./cards";
 import { narrate } from "./narrate";
 import {
   alivePlayers,
@@ -184,11 +184,12 @@ export function canPlay(s: GameState, playerId: number, cardIds: number[]): Play
   if (p.id !== playerId) return { error: "It isn't your turn." };
   const cards = cardIds.map((id) => p.hand.find((c) => c.id === id)).filter((c): c is Card => !!c);
   if (cards.length !== cardIds.length) return { error: "Card not in hand." };
-  if (cards.length === 2) {
-    if (isPlain(cards[0].kind) && cards[0].kind === cards[1].kind) return "pair";
-    return { error: "Two cards only work as matching chickens." };
+  if (cards.length === 2 || cards.length === 3) {
+    const k = cards[0].kind;
+    if (isPlain(k) && cards.every((c) => c.kind === k)) return cards.length === 2 ? "pair" : "triple";
+    return { error: `${cards.length === 2 ? "Two" : "Three"} cards only work as matching chickens.` };
   }
-  if (cards.length !== 1) return { error: "Play one action card, or two matching chickens." };
+  if (cards.length !== 1) return { error: "Play one action card, or two or three matching chickens." };
   switch (cards[0].kind) {
     case "noway":
       return { error: "No Way only cancels someone else's action." };
@@ -202,7 +203,7 @@ export function canPlay(s: GameState, playerId: number, cardIds: number[]): Play
     case "rooster":
     case "chick":
     case "egg":
-      return { error: "Plain chickens only work as a pair." };
+      return { error: "Plain chickens work as a pair or three of a kind." };
     default:
       return cards[0].kind;
   }
@@ -213,17 +214,18 @@ export function canPlay(s: GameState, playerId: number, cardIds: number[]): Play
  * they all decide (bots via botStep, people via sayNoWay / passOnNope); otherwise
  * the action resolves immediately.
  */
-export function playCards(state: GameState, playerId: number, cardIds: number[], targetId?: number): GameState {
+export function playCards(state: GameState, playerId: number, cardIds: number[], targetId?: number, named?: CardKind): GameState {
   const s = structuredClone(state);
   const kind = canPlay(s, playerId, cardIds);
   if (typeof kind !== "string") return s;
+  if (needsNamedCard(kind) && !named) return s;
   const p = currentPlayer(s);
   const cards = takeFromHand(p, cardIds);
   s.discard.push(...cards);
   s.lastPlay = { id: s.nextId++, actorId: p.id, cardIds: cardIds.slice(), targetId };
-  cue(s, kind === "pair" ? "cluck" : "pop");
+  cue(s, kind === "pair" || kind === "triple" ? "cluck" : "pop");
 
-  const action: PendingAction = { actorId: p.id, kind, cards, targetId };
+  const action: PendingAction = { actorId: p.id, kind, cards, targetId, ...(needsNamedCard(kind) ? { named } : {}) };
   narrate.played(s, p, action, targetId !== undefined ? playerById(s, targetId) : null);
 
   const candidates = alivePlayers(s)
@@ -381,6 +383,17 @@ function resolveAction(s: GameState, a: PendingAction) {
       p.hand.push(stolen);
       cue(s, "cluck");
       narrate.stole(s, p, t, stolen);
+      return;
+    }
+
+    case "triple": {
+      const t = playerById(s, a.targetId!);
+      const wanted = t.alive ? t.hand.find((c) => c.kind === a.named) : undefined;
+      if (wanted) {
+        p.hand.push(...takeFromHand(t, [wanted.id]));
+        cue(s, "cluck");
+      }
+      narrate.namedTake(s, p, t, a.named!, !!wanted);
       return;
     }
   }
