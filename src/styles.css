@@ -462,7 +462,8 @@ button.mute {
 }
 .log span {
   display: block;
-  opacity: 0.55;
+  /* older lines recede, but stay readable */
+  opacity: 0.72;
 }
 .log span:last-child {
   opacity: 1;
@@ -1932,4 +1933,36 @@ input.depth {
   .actions button {
     font-size: 1.1rem;
   }
+}
+
+/* ---------- three of a kind: name a card ---------- */
+.namegrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.namegrid button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 0.86rem;
+  text-align: left;
+  line-height: 1.15;
+}
+.namegrid button.suggested {
+  box-shadow: 0 0 0 2px var(--barn), 0 3px 0 var(--cream-deep);
+}
+.namegrid .emoji {
+  font-size: 1.2rem;
+}
+.levels button small.level-record {
+  margin-top: auto;
+  padding-top: 4px;
+  font-weight: 600;
+  opacity: 1;
+  border-top: 1px solid currentColor;
+  border-top-color: color-mix(in srgb, currentColor 25%, transparent);
 }

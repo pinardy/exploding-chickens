@@ -7,9 +7,10 @@ import { BOT_MOVE_MS, BOT_NOPE_MS, EVENT_MS, NOPE_WINDOW_MS, QUIP_MS } from "./c
  * bots making their moves, explosions staying on screen, and the No Way window
  * closing. The engine itself has no notion of time.
  */
-export function useGameClock(state: GameState, setState: Dispatch<SetStateAction<GameState>>) {
-  // Once no person is left in the game, nobody needs to follow each move closely.
-  const pace = state.players.some((p) => p.isHuman && p.alive) ? 1 : 0.35;
+export function useGameClock(state: GameState, setState: Dispatch<SetStateAction<GameState>>, botPace = 1) {
+  // botPace is the bot speed setting. Once no person is left in the game, nobody needs to
+  // follow each move closely, whatever the setting.
+  const pace = state.players.some((p) => p.isHuman && p.alive) ? botPace : Math.min(botPace, 0.35);
   const showingEvent = state.event !== null;
   // A person's own explosion gets the full moment even though they're out by then.
   const eventIsPersons = state.players.some((p) => p.id === state.event?.playerId && p.isHuman);

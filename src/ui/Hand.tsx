@@ -66,7 +66,7 @@ export function Hand({ hand, selected, playable, canDraw, drawArmed, active, onT
   const kind = typeof playable === "string" ? playable : null;
   const error = playable && typeof playable !== "string" ? playable.error : null;
   const first = hand.find((c) => c.id === selected[0]);
-  const playLabel = kind === "pair" ? "Play pair" : kind && first ? `Play ${CARD_INFO[first.kind].name}` : "Play";
+  const playLabel = kind === "pair" ? "Play pair" : kind === "triple" ? "Play three" : kind && first ? `Play ${CARD_INFO[first.kind].name}` : "Play";
   const info = first && CARD_INFO[first.kind];
 
   return (
@@ -78,7 +78,8 @@ export function Hand({ hand, selected, playable, canDraw, drawArmed, active, onT
               error
             ) : (
               <>
-                <b>{kind === "pair" ? "Pair" : info.name}:</b> {kind === "pair" ? "steal a random card from someone." : info.text}
+                <b>{kind === "pair" ? "Pair" : kind === "triple" ? "Three of a kind" : info.name}:</b>{" "}
+                {kind === "pair" ? "steal a random card from someone." : kind === "triple" ? "name a card and take it from someone, if they have one." : info.text}
               </>
             )}
           </span>

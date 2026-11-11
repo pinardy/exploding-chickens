@@ -95,8 +95,8 @@ export function botStep(s: GameState): GameState {
 
 function takeTurn(s: GameState, bot: Player, pr: BotProfile): GameState {
   const has = (k: CardKind) => hasCard(bot, k);
-  const play = (cards: Card[], targetId: number | undefined, quip: QuipEvent) =>
-    withQuip(playCards(s, bot.id, cards.map((c) => c.id), targetId), bot, quip);
+  const play = (cards: Card[], targetId: number | undefined, quip: QuipEvent, named?: CardKind) =>
+    withQuip(playCards(s, bot.id, cards.map((c) => c.id), targetId, named), bot, quip);
   const danger = s.deck.filter((c) => c.kind === "chicken").length / Math.max(1, s.deck.length);
   const known = pr.remembers ? s.botKnowledge[bot.id] : [];
   const topKnown = known.length > 0 && known[0] !== null;
@@ -135,10 +135,19 @@ function takeTurn(s: GameState, bot: Player, pr: BotProfile): GameState {
     if (victim) return play([fox], victim.id, "attacked");
   }
 
+  // Three of a kind: ask for an Extinguisher when exposed, from whoever most likely still has one.
+  const triple = findMatching(bot.hand, 3);
+  if (triple && !has("extinguisher") && Math.random() < pr.grabCards) {
+    const holder = likelyHolder(s, bot, pr);
+    if (holder) return play(triple, holder.id, "grabbed", "extinguisher");
+  }
+
   // Grab cards when short on them.
   if (bot.hand.length <= pr.shortHand && Math.random() < pr.grabCards) {
     const victim = pickVictim(s, bot, pr);
     if (victim) {
+      // Holding an Extinguisher already, a triple is still worth a No Way or a Skip.
+      if (triple) return play(triple, victim.id, "grabbed", pr.placement === "random" ? ASKABLE[rand(ASKABLE.length)] : "noway");
       const pair = findPair(bot.hand);
       if (pair) return play(pair, victim.id, "grabbed");
       const favor = has("favor");
@@ -150,11 +159,29 @@ function takeTurn(s: GameState, bot: Player, pr: BotProfile): GameState {
 }
 
 function findPair(hand: Card[]): Card[] | null {
+  return findMatching(hand, 2);
+}
+
+function findMatching(hand: Card[], n: number): Card[] | null {
   for (const k of PLAIN_KINDS) {
     const matching = hand.filter((c) => c.kind === k);
-    if (matching.length >= 2) return matching.slice(0, 2);
+    if (matching.length >= n) return matching.slice(0, n);
   }
   return null;
+}
+
+/** Cards worth naming with three of a kind, for a bot that asks at random. */
+const ASKABLE: CardKind[] = ["extinguisher", "noway", "skip", "favor", "peek"];
+
+/**
+ * Who most likely still holds an Extinguisher: everyone is dealt one, so prefer players
+ * who haven't been seen using theirs, then bigger hands. Chick just picks anyone.
+ */
+function likelyHolder(s: GameState, bot: Player, pr: BotProfile): Player | null {
+  const others = alivePlayers(s).filter((p) => p.id !== bot.id && p.hand.length > 0);
+  if (pr.placement === "random") return others[rand(others.length)] ?? null;
+  const score = (p: Player) => p.hand.length - 5 * (s.extinguishersUsed[p.id] ?? 0);
+  return others.sort((a, b) => score(b) - score(a))[0] ?? null;
 }
 
 /** Chick picks anyone; Hen goes after the fattest hand; Rooster also prefers whoever has used up an Extinguisher. */

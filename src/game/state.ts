@@ -45,6 +45,8 @@ export interface PendingAction {
   kind: PlayKind;
   cards: Card[];
   targetId?: number;
+  /** Three of a kind: the card asked for. */
+  named?: CardKind;
 }
 
 export type Phase =
