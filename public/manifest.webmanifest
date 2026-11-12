@@ -1,6 +1,7 @@
 {
   "name": "Exploding Chickens",
   "short_name": "Chickens",
+  "id": "./",
   "description": "A card game of nerve. Don't draw the chicken.",
   "start_url": "./",
   "scope": "./",

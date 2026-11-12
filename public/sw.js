@@ -1,5 +1,6 @@
 // Offline support: cache the app shell on install, serve from cache, refresh in the background.
-const CACHE = "exploding-chickens-v1";
+// Bump when the shell changes in a way installed copies must pick up promptly.
+const CACHE = "exploding-chickens-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
