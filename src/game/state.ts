@@ -138,7 +138,8 @@ function handSize(players: number, quick: boolean): number {
   if (quick) return 4;
   return players >= 5 ? 5 : 7;
 }
-const MAX_LOG = 60;
+/** Enough for a whole game, so the history sheet really is the whole story; a bound all the same, since the log is saved with the game. */
+const MAX_LOG = 600;
 
 // ---------- randomness ----------
 

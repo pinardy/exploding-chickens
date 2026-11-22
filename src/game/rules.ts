@@ -357,7 +357,10 @@ function resolveAction(s: GameState, a: PendingAction) {
     case "peek": {
       const top = s.deck.slice(0, 3);
       cue(s, "peek");
-      s.botKnowledge[p.id] = top.map((c) => c.kind);
+      // Fill in the top three; whatever was already known deeper down (a chicken put back) stays known.
+      const known = (s.botKnowledge[p.id] ?? []).slice();
+      top.forEach((c, i) => (known[i] = c.kind));
+      s.botKnowledge[p.id] = known;
       if (p.isHuman) {
         s.phase = { type: "peek", cards: top };
       } else {

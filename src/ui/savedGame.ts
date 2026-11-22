@@ -10,6 +10,11 @@ export interface SavedGame {
   state: GameState;
   /** Whose cards were on screen. */
   viewer: number;
+  /**
+   * How many of this game's explosions are already in the stats, or null while the game hasn't
+   * been recorded. Kept with the game so resuming it doesn't count it twice.
+   */
+  recorded: number | null;
 }
 
 export function saveGame(game: SavedGame) {
@@ -33,10 +38,15 @@ export function loadSavedGame(): SavedGame | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const { v, setup, state, viewer } = JSON.parse(raw);
+    const { v, setup, state, viewer, recorded } = JSON.parse(raw);
     if (v !== VERSION || !setup || !state?.players?.length || state.winner !== null) return null;
-    // Moments that were on screen when it was saved shouldn't replay on resume.
-    return { setup, viewer: typeof viewer === "number" ? viewer : 0, state: upgrade({ ...state, event: null, sfx: null, quip: null }) };
+    return {
+      setup,
+      viewer: typeof viewer === "number" ? viewer : 0,
+      recorded: typeof recorded === "number" ? recorded : null,
+      // Moments that were on screen when it was saved shouldn't replay on resume.
+      state: upgrade({ ...state, event: null, sfx: null, quip: null }),
+    };
   } catch {
     return null;
   }

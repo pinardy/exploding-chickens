@@ -146,8 +146,13 @@ function takeTurn(s: GameState, bot: Player, pr: BotProfile): GameState {
   if (bot.hand.length <= pr.shortHand && Math.random() < pr.grabCards) {
     const victim = pickVictim(s, bot, pr);
     if (victim) {
-      // Holding an Extinguisher already, a triple is still worth a No Way or a Skip.
-      if (triple) return play(triple, victim.id, "grabbed", pr.placement === "random" ? ASKABLE[rand(ASKABLE.length)] : "noway");
+      if (triple) {
+        // Chick asks for anything. The others want an Extinguisher while they have none (the roll
+        // above can fail), and a No Way once they're covered.
+        const wants: CardKind = pr.placement === "random" ? ASKABLE[rand(ASKABLE.length)] : has("extinguisher") ? "noway" : "extinguisher";
+        const from = wants === "extinguisher" ? (likelyHolder(s, bot, pr) ?? victim) : victim;
+        return play(triple, from.id, "grabbed", wants);
+      }
       const pair = findPair(bot.hand);
       if (pair) return play(pair, victim.id, "grabbed");
       const favor = has("favor");

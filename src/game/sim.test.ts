@@ -121,3 +121,41 @@ describe("three of a kind", () => {
     expect(canPlay(s, 0, [900, 901, 902])).toEqual({ error: "Three cards only work as matching chickens." });
   });
 });
+
+describe("what you know about the pile", () => {
+  it("keeps a chicken you put back deeper down when you Peek", () => {
+    const s = startGame({ mode: "solo", count: 1, difficulty: "chick", handLimit: null, quick: false, expansion: false });
+    const [me, bot] = s.players;
+    me.hand = [{ id: 900, kind: "peek" }];
+    bot.hand = []; // nobody to say No Way, so the Peek resolves at once
+    // The pile's only chicken sits 5th from the top, and you know it: you put it there.
+    const chicken = s.deck.splice(s.deck.findIndex((c) => c.kind === "chicken"), 1)[0];
+    s.deck.splice(4, 0, chicken);
+    s.botKnowledge[me.id] = [null, null, null, null, "chicken"];
+
+    const after = playCards(s, me.id, [900]);
+    expect(after.phase.type).toBe("peek");
+    expect(after.botKnowledge[me.id]).toEqual([...after.deck.slice(0, 3).map((c) => c.kind), null, "chicken"]);
+  });
+});
+
+describe("bots and three of a kind", () => {
+  it("ask for an Extinguisher, not a No Way, while they have none", () => {
+    const base = startGame({ mode: "solo", count: 1, difficulty: "rooster", handLimit: null, quick: false, expansion: false });
+    const [me, bot] = base.players;
+    // You hold a No Way, so every play pauses in the No Way window where the request can be read.
+    me.hand = [{ id: 950, kind: "noway" }, { id: 951, kind: "extinguisher" }];
+    bot.hand = [900, 901, 902].map((id) => ({ id, kind: "hen" as const }));
+    base.current = 1;
+
+    let asked = 0;
+    for (let i = 0; i < 300; i++) {
+      const s = botStep(base);
+      if (s.phase.type !== "nopeWindow") continue; // it drew instead
+      expect(s.phase.action.kind).toBe("triple");
+      expect(s.phase.action.named).toBe("extinguisher");
+      asked++;
+    }
+    expect(asked).toBeGreaterThan(0);
+  });
+});

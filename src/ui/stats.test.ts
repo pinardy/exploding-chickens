@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { loadStats, recordGame } from "./stats";
+import { addExplosions, loadStats, recordGame } from "./stats";
 
 // The tests run in Node, which has no localStorage: give them a small in-memory one.
 const store = new Map<string, string>();
@@ -42,5 +42,15 @@ describe("stats", () => {
     const s = loadStats();
     expect(s).toMatchObject({ games: 7, explosions: 20, wins: 3, streak: 0, bestStreak: 0 });
     expect(s.byLevel.rooster).toEqual({ games: 0, wins: 0, best: 0 });
+  });
+
+  it("adds explosions that follow a game already recorded, without counting another game", () => {
+    // A solo loss is recorded the moment you're out; the bots explode on afterwards.
+    recordGame({ explosions: 1, solo: { difficulty: "hen", won: false, place: 3 } });
+    const s = addExplosions(1);
+    expect(s.games).toBe(1);
+    expect(s.explosions).toBe(2);
+    expect(s.byLevel.hen).toEqual({ games: 1, wins: 0, best: 3 });
+    expect(loadStats()).toEqual(s);
   });
 });

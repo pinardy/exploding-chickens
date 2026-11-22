@@ -3,7 +3,7 @@ import type { Card, LogEntry } from "../../game";
 import { CardView } from "../CardView";
 import { Modal } from "./Modal";
 
-/** Everything that's happened this game, newest at the bottom, opened scrolled to the end. */
+/** Everything that's happened this game (the engine keeps the whole log), newest at the bottom, opened scrolled to the end. */
 export function LogModal({ log, onClose }: { log: LogEntry[]; onClose: () => void }) {
   const end = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {

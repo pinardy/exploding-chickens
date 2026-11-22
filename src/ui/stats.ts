@@ -68,6 +68,20 @@ export function recordGame({ explosions, solo }: GameResult): Stats {
       s.streak = 0;
     }
   }
+  return save(s);
+}
+
+/**
+ * Explosions that happened after a game was already recorded: a solo game is recorded the
+ * moment the person is out, and the bots may go on exploding after that.
+ */
+export function addExplosions(n: number): Stats {
+  const s = loadStats();
+  s.explosions += n;
+  return save(s);
+}
+
+function save(s: Stats): Stats {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch {
