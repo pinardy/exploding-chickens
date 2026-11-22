@@ -16,7 +16,7 @@ export default function App() {
   const [game, setGame] = useState<Session | null>(null);
   const [saved, setSaved] = useState(loadSavedGame);
 
-  const deal = (setup: GameSetup) => setGame((g) => ({ key: (g?.key ?? 0) + 1, setup, state: startGame(setup), viewer: 0, resumed: false }));
+  const deal = (setup: GameSetup) => setGame((g) => ({ key: (g?.key ?? 0) + 1, setup, state: startGame(setup), viewer: 0, recorded: null, resumed: false }));
   const resume = () => saved && setGame({ ...saved, key: 1, resumed: true });
   const exit = () => {
     setGame(null);
@@ -35,6 +35,7 @@ export default function App() {
           setup={game.setup}
           initial={game.state}
           initialViewer={game.viewer}
+          initialRecorded={game.recorded}
           resumed={game.resumed}
           onExit={exit}
           onNewGame={() => deal(game.setup)}

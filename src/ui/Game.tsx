@@ -45,7 +45,7 @@ import { COACH_DONE, COACH_TIPS, advanceCoach, skipCoach, useCoachStep } from ".
 import { fastForward } from "./fastForward";
 import { clearSavedGame, saveGame } from "./savedGame";
 import { BOT_SPEED_PACE, useSettings, vibrate } from "./settings";
-import { recordGame, type Stats } from "./stats";
+import { addExplosions, loadStats, recordGame, type Stats } from "./stats";
 import { useGameClock } from "./useGameClock";
 import { useSfx } from "./useSfx";
 
@@ -62,13 +62,15 @@ interface Props {
   setup: GameSetup;
   initial: GameState;
   initialViewer: number;
+  /** Explosions of this game already in the stats, or null if it hasn't been recorded yet. */
+  initialRecorded: number | null;
   /** Restored from storage: in pass & play, hide the hand until someone claims the phone. */
   resumed: boolean;
   onExit: () => void;
   onNewGame: () => void;
 }
 
-export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame }: Props) {
+export function Game({ setup, initial, initialViewer, initialRecorded, resumed, onExit, onNewGame }: Props) {
   const [state, setState] = useState(initial);
   // Whose cards the screen shows. Solo: always player 0. Pass & play: whoever last took the phone.
   const [viewer, setViewer] = useState(initialViewer);
@@ -77,8 +79,8 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   const [choosingTarget, setChoosingTarget] = useState(false);
   /** Three of a kind: the player picked, while choosing which card to ask them for. */
   const [naming, setNaming] = useState<number | null>(null);
-  const [reading, setReading] = useState<Card | null>(null);
-  const [sheet, setSheet] = useState<"settings" | "log" | "pile" | null>(null);
+  const [openSheet, setSheet] = useState<"settings" | "log" | "pile" | null>(null);
+  const [openCard, setReading] = useState<Card | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);
   const [settings] = useSettings();
 
@@ -90,35 +92,41 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   const showingEvent = state.event !== null;
   const needsPhone = activeHuman(state);
   const curtainUp = needsPhone !== null && (needsPhone !== viewer || hidden) && !showingEvent;
+  // The game-over screen takes over: a sheet left open under it would keep the app behind it inert.
+  const sheet = state.winner !== null ? null : openSheet;
+  const reading = state.winner !== null ? null : openCard;
 
   useGameClock(state, setState, BOT_SPEED_PACE[settings.botSpeed]);
   useSfx(state, curtainUp, settings);
 
-  const recorded = useRef(false);
-  const [stats, setStats] = useState<Stats | null>(null);
+  // ---- lifetime stats ----
+  // A game counts as soon as its result for the person is known: at the end, or in solo the moment
+  // they're out, so leaving a lost game early still counts as a loss. Explosions that follow are
+  // added as they happen. `recorded` is how many explosions are in the stats so far.
+  const recorded = useRef(initialRecorded);
+  const [stats, setStats] = useState<Stats | null>(() => (initialRecorded === null ? null : loadStats()));
+  const explosions = state.outOrder.length;
+  const soloPlace = state.mode !== "solo" ? null : state.winner === 0 ? 1 : state.outOrder.includes(0) ? state.players.length - state.outOrder.indexOf(0) : null;
+  const resultKnown = state.winner !== null || soloPlace !== null;
   useEffect(() => {
-    if (state.winner === null || recorded.current) return;
-    recorded.current = true;
-    setStats(
-      recordGame({
-        explosions: state.players.length - 1,
-        solo:
-          state.mode === "solo"
-            ? {
-                difficulty: state.difficulty,
-                won: state.winner === 0,
-                // Out first of six is 6th; the winner is 1st.
-                place: state.winner === 0 ? 1 : state.players.length - (state.outOrder ?? []).indexOf(0),
-              }
-            : null,
-      }),
-    );
-  }, [state.winner, state.players.length, state.mode, state.difficulty]);
+    if (!resultKnown) return;
+    if (recorded.current === null) {
+      // Out first of six is 6th; the winner is 1st.
+      const solo = soloPlace === null ? null : { difficulty: state.difficulty, won: soloPlace === 1, place: soloPlace };
+      setStats(recordGame({ explosions, solo }));
+    } else if (explosions > recorded.current) {
+      setStats(addExplosions(explosions - recorded.current));
+    } else {
+      return;
+    }
+    recorded.current = explosions;
+  }, [resultKnown, explosions, soloPlace, state.difficulty]);
 
-  // Keep the game on the device until it's over.
+  // Keep the game on the device until it's over. Declared after the stats effect, so what's saved
+  // already says whether this game has been counted.
   useEffect(() => {
     if (state.winner !== null) clearSavedGame();
-    else saveGame({ setup, state, viewer });
+    else saveGame({ setup, state, viewer, recorded: recorded.current });
   }, [setup, state, viewer]);
 
   // Draw becomes live a moment after your turn (or a sheet over it) starts, so a tap aimed at
@@ -158,27 +166,31 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
     setNaming(null);
     setState((s) => playCards(s, me.id, ids, targetId, named));
     setSelected([]);
+    advanceCoach(2); // they've played a card: on to the tip about drawing
   };
 
   // Double-tap (or swipe up) plays a card straight away. On a card that's part of a selected
   // pair or three of a kind, it plays the whole set.
-  const quickPlay = (id: number) => {
+  const quickPlay = (id: number, sel: number[] = selected) => {
     if (!myTurn) return;
     unlockAudio();
-    const set = selected.length >= 2 && selected.includes(id) && typeof canPlay(state, me.id, selected) === "string";
-    play(set ? selected : [id]);
+    const set = sel.length >= 2 && sel.includes(id) && typeof canPlay(state, me.id, sel) === "string";
+    play(set ? sel : [id]);
   };
 
-  const lastTap = useRef<{ id: number; at: number } | null>(null);
+  /** The last tap on a card, and the selection as it was just before it. */
+  const lastTap = useRef<{ id: number; at: number; before: number[] } | null>(null);
   const toggleCard = (id: number) => {
     if (!myTurn) return;
     unlockAudio();
     const now = Date.now();
     const prev = lastTap.current;
-    lastTap.current = { id, at: now };
+    lastTap.current = { id, at: now, before: selected };
     if (prev?.id === id && now - prev.at < DOUBLE_TAP_MS) {
       lastTap.current = null;
-      return quickPlay(id);
+      // The first tap of the pair toggled this card. If that took it out of a selected set,
+      // the set the person means is the one from before that tap.
+      return quickPlay(id, prev.before.includes(id) ? prev.before : selected);
     }
     setSelected((sel) => (sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id].slice(-3)));
   };
@@ -194,7 +206,8 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
 
   // ---- "Your turn": a toast, a buzz and a glow on the hand when a new turn of yours starts ----
   const turnLogId = [...state.log].reverse().find((l) => l.tone === "turn")?.id ?? null;
-  const turnMark = cur.id === me.id && me.alive ? turnLogId : null;
+  // Not once there's a winner: the engine points `current` at them without starting a turn.
+  const turnMark = cur.id === me.id && me.alive && state.winner === null ? turnLogId : null;
   const [toast, setToast] = useState<number | null>(null);
   useEffect(() => {
     if (turnMark === null) return;
@@ -211,9 +224,6 @@ export function Game({ setup, initial, initialViewer, resumed, onExit, onNewGame
   useEffect(() => {
     if (selected.length > 0) advanceCoach(1);
   }, [selected.length]);
-  useEffect(() => {
-    if (state.lastPlay?.actorId === me.id) advanceCoach(2);
-  }, [state.lastPlay, me.id]);
   const showCoach = coach < COACH_DONE && canAct;
 
   // ---- out of a solo game: watch, skip to the end, or start again ----
