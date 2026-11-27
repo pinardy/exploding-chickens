@@ -153,7 +153,7 @@ function takeTurn(s: GameState, bot: Player, pr: BotProfile): GameState {
         const from = wants === "extinguisher" ? (likelyHolder(s, bot, pr) ?? victim) : victim;
         return play(triple, from.id, "grabbed", wants);
       }
-      const pair = findPair(bot.hand);
+      const pair = findMatching(bot.hand, 2);
       if (pair) return play(pair, victim.id, "grabbed");
       const favor = has("favor");
       if (favor) return play([favor], victim.id, "grabbed");
@@ -161,10 +161,6 @@ function takeTurn(s: GameState, bot: Player, pr: BotProfile): GameState {
   }
 
   return withQuip(drawCard(s), bot, topKnown && !chickenOnTop ? "drewSafe" : "drew");
-}
-
-function findPair(hand: Card[]): Card[] | null {
-  return findMatching(hand, 2);
 }
 
 function findMatching(hand: Card[], n: number): Card[] | null {
@@ -178,24 +174,19 @@ function findMatching(hand: Card[], n: number): Card[] | null {
 /** Cards worth naming with three of a kind, for a bot that asks at random. */
 const ASKABLE: CardKind[] = ["extinguisher", "noway", "skip", "favor", "peek"];
 
-/**
- * Who most likely still holds an Extinguisher: everyone is dealt one, so prefer players
- * who haven't been seen using theirs, then bigger hands. Chick just picks anyone.
- */
-function likelyHolder(s: GameState, bot: Player, pr: BotProfile): Player | null {
+/** Chick picks anyone with cards; the others pick whoever scores highest. */
+function pickPlayer(s: GameState, bot: Player, pr: BotProfile, score: (p: Player) => number): Player | null {
   const others = alivePlayers(s).filter((p) => p.id !== bot.id && p.hand.length > 0);
   if (pr.placement === "random") return others[rand(others.length)] ?? null;
-  const score = (p: Player) => p.hand.length - 5 * (s.extinguishersUsed[p.id] ?? 0);
   return others.sort((a, b) => score(b) - score(a))[0] ?? null;
 }
 
-/** Chick picks anyone; Hen goes after the fattest hand; Rooster also prefers whoever has used up an Extinguisher. */
-function pickVictim(s: GameState, bot: Player, pr: BotProfile): Player | null {
-  const others = alivePlayers(s).filter((p) => p.id !== bot.id && p.hand.length > 0);
-  if (pr.placement === "random") return others[rand(others.length)] ?? null;
-  const score = (p: Player) => p.hand.length + (pr.placement === "cunning" && s.extinguishersUsed[p.id] > 0 ? 3 : 0);
-  return others.sort((a, b) => score(b) - score(a))[0] ?? null;
-}
+/** Who most likely still holds an Extinguisher: everyone is dealt one, so prefer players who haven't been seen using theirs, then bigger hands. */
+const likelyHolder = (s: GameState, bot: Player, pr: BotProfile) => pickPlayer(s, bot, pr, (p) => p.hand.length - 5 * s.extinguishersUsed[p.id]);
+
+/** Who to take a card from: Hen goes after the fattest hand; Rooster also prefers whoever has used up an Extinguisher. */
+const pickVictim = (s: GameState, bot: Player, pr: BotProfile) =>
+  pickPlayer(s, bot, pr, (p) => p.hand.length + (pr.placement === "cunning" && s.extinguishersUsed[p.id] > 0 ? 3 : 0));
 
 // ---------- other decisions ----------
 
