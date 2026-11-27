@@ -1,10 +1,9 @@
 import { useState } from "react";
+import { ordinal } from "../format";
 import { Modal } from "./Modal";
 
 /** Above this many cards the pile strip shows one stripe per two cards or so; it's a picture, not a count. */
 const MAX_STRIPES = 40;
-
-const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
 
 function describe(depth: number, deckSize: number): string {
   if (deckSize === 0) return "The pile is empty: it’ll be the only card in it";

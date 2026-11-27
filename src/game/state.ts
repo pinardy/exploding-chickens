@@ -1,7 +1,7 @@
 // Game state: types, construction, and small helpers shared by rules.ts and bot.ts.
 // Nothing here changes the state after construction; that's rules.ts's job.
 
-import { BASE_EXTRAS, DECK_RECIPE, EXPANSION_RECIPE, PLAIN_KINDS, QUICK_DECK_RECIPE, type Card, type CardKind, type PlayKind } from "./cards";
+import { BASE_EXTRAS, DECK_RECIPE, EXPANSION_RECIPE, QUICK_DECK_RECIPE, type Card, type CardKind, type PlayKind } from "./cards";
 
 export type Mode = "solo" | "hotseat";
 export type Difficulty = "chick" | "hen" | "rooster";
@@ -266,6 +266,3 @@ export function newGame(setup: GameSetup): GameState {
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-
-// Re-exported so callers rarely need cards.ts directly.
-export { PLAIN_KINDS };

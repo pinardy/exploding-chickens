@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
-import { activeBot, botStep, clearEvent, clearQuip, letItHappen, type GameState } from "../game";
-import { BOT_MOVE_MS, BOT_NOPE_MS, EVENT_MS, NOPE_WINDOW_MS, QUIP_MS } from "./constants";
+import { activeBot, botStep, clearEvent, letItHappen, type GameState } from "../game";
+import { BOT_MOVE_MS, BOT_NOPE_MS, EVENT_MS, NOPE_WINDOW_MS } from "./constants";
 
 /**
  * Everything in the game that happens on a timer rather than a tap:
@@ -31,14 +31,6 @@ export function useGameClock(state: GameState, setState: Dispatch<SetStateAction
     const t = setTimeout(() => setState((s) => clearEvent(s)), EVENT_MS * (eventIsPersons ? 1 : pace));
     return () => clearTimeout(t);
   }, [state.event, setState, pace, eventIsPersons]);
-
-  // Speech bubbles fade on their own; forget the quip once they have.
-  const quipId = state.quip?.id;
-  useEffect(() => {
-    if (quipId === undefined) return;
-    const t = setTimeout(() => setState((s) => clearQuip(s)), QUIP_MS);
-    return () => clearTimeout(t);
-  }, [quipId, setState]);
 
   // Once only people are left deciding, the No Way window times out.
   const humansDeciding = phaseType === "nopeWindow" && bot === null;

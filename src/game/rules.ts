@@ -11,7 +11,6 @@ import {
   currentPlayer,
   forgetPileOrder,
   hasCard,
-  isYou,
   nextAlive,
   pileTopDrawn,
   playerById,
@@ -41,7 +40,7 @@ function advanceTurn(s: GameState) {
   s.turnsLeft = s.pendingAttack > 0 ? s.pendingAttack : 1;
   s.pendingAttack = 0;
   s.phase = { type: "turn" };
-  s.turnsTaken = { ...s.turnsTaken, [next.id]: (s.turnsTaken?.[next.id] ?? 0) + 1 };
+  s.turnsTaken[next.id] += 1;
   narrate.turnStart(s, next);
 }
 
@@ -122,7 +121,7 @@ function faceChicken(s: GameState, p: Player, card: Card, tossed = false) {
   s.discard.push(card, ...p.hand);
   p.hand = [];
   p.alive = false;
-  s.outOrder = [...(s.outOrder ?? []), p.id];
+  s.outOrder.push(p.id);
   setEvent(s, "explode", p.id);
   cue(s, "boom");
   narrate.exploded(s, p);
@@ -358,7 +357,7 @@ function resolveAction(s: GameState, a: PendingAction) {
       const top = s.deck.slice(0, 3);
       cue(s, "peek");
       // Fill in the top three; whatever was already known deeper down (a chicken put back) stays known.
-      const known = (s.botKnowledge[p.id] ?? []).slice();
+      const known = s.botKnowledge[p.id].slice();
       top.forEach((c, i) => (known[i] = c.kind));
       s.botKnowledge[p.id] = known;
       if (p.isHuman) {
@@ -420,10 +419,6 @@ export function giveFavorCard(state: GameState, cardId: number): GameState {
   return s;
 }
 
-export function clearQuip(state: GameState): GameState {
-  return state.quip ? { ...state, quip: null } : state;
-}
-
 export function clearEvent(state: GameState): GameState {
   return state.event ? { ...state, event: null } : state;
 }
@@ -441,5 +436,3 @@ export function activeHuman(s: GameState): number | null {
 export function isTurnOf(s: GameState, playerId: number): boolean {
   return s.phase.type === "turn" && currentPlayer(s).id === playerId && playerById(s, playerId).alive;
 }
-
-export { isYou };

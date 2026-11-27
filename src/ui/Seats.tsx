@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { LastPlay, Player, Quip } from "../game";
+import { QUIP_MS } from "./constants";
 
 /** From this many opponents the seats shrink to one compact row so the hand stays on screen. */
 const COMPACT_FROM = 4;
@@ -13,8 +15,25 @@ interface Props {
   lastPlay: LastPlay | null;
 }
 
+/**
+ * A bot's line until its bubble has faded. The engine only ever says the latest line; letting
+ * go of it happens here, so a bubble running out isn't a change to the game (which would
+ * restart the bots' move timer and write the save again).
+ */
+function useUntilFaded(quip: Quip | null): Quip | null {
+  const [faded, setFaded] = useState<number | null>(null);
+  const id = quip?.id;
+  useEffect(() => {
+    if (id === undefined) return;
+    const t = setTimeout(() => setFaded(id), QUIP_MS);
+    return () => clearTimeout(t);
+  }, [id]);
+  return quip && quip.id !== faded ? quip : null;
+}
+
 /** The other players around the table, with card counts, a thinking wobble and speech bubbles. */
-export function Seats({ players, currentId, thinkingId, quip, lastPlay }: Props) {
+export function Seats({ players, currentId, thinkingId, quip: latestQuip, lastPlay }: Props) {
+  const quip = useUntilFaded(latestQuip);
   return (
     <div className={`opponents ${players.length >= COMPACT_FROM ? "compact" : ""}`}>
       {players.map((p) => (

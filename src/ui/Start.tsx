@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AVATARS, BASE_EXTRAS, CARD_INFO, DECK_RECIPE, EXPANSION_RECIPE, HAND_LIMIT, MAX_PLAYERS, type CardKind, type Difficulty, type GameSetup, type Mode, type Seat } from "../game";
 import { play, unlockAudio } from "../sounds";
+import { ordinal } from "./format";
 import { Logo } from "./Logo";
 import { SettingsModal } from "./modals/SettingsModal";
 import type { SavedGame } from "./savedGame";
@@ -245,5 +246,3 @@ function describeSaved({ state }: SavedGame): string {
   const who = state.mode === "solo" ? `vs ${state.players.length - 1} bot${state.players.length === 2 ? "" : "s"}` : `${state.players.length} players`;
   return `${state.mode === "solo" ? "Solo" : "Pass & play"} ${who} · ${alive} still in · ${state.deck.length} cards left`;
 }
-
-const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;

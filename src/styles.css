@@ -780,7 +780,9 @@ button.mute {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    /* 0s, not a token 0.01ms: any running transition, however short, makes the browser report
+       and lay out the old value until the next frame, and CardView measures text as it sizes it. */
+    transition-duration: 0s !important;
   }
   .boom .big,
   .feather {
@@ -1213,7 +1215,7 @@ button.gear:active {
 :root[data-motion="reduced"] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
+  transition-duration: 0s !important; /* see the OS-preference rule above */
 }
 :root[data-motion="reduced"] .bubble,
 :root[data-motion="reduced"] .boom {
